@@ -165,7 +165,10 @@ let simulatorScenarios = loadSimulatorScenarios();
 let currentSimResult = null;
 let accountSettings = loadAccountSettings();
 let reminderSettings = loadReminderSettings();
-let statementTransactions = loadStatementTransactions();
+let statementTransactions = reconcileStoredStatementTransactions(loadStatementTransactions());
+if (statementTransactions.length > 0) {
+  localStorage.setItem(STATEMENT_KEY, JSON.stringify(statementTransactions));
+}
 let latestStatementScan = statementTransactions.length > 0 ? buildStatementScan(getAnalyzedTransactions()) : null;
 let budgets = loadBudgets();
 let savingsGoals = loadSavingsGoals();
@@ -536,8 +539,8 @@ function mergeStatementTransactions(incomingTransactions) {
     duplicates: 0,
   };
 
-  statementTransactions.forEach((transaction) => {
-    transactionMap.set(transaction.key || getTransactionKey(transaction), normalizeStoredTransaction(transaction));
+  statementTransactions.forEach((transaction, index) => {
+    transactionMap.set(transaction.key || getTransactionKey(transaction), normalizeStoredTransaction(transaction, index));
   });
 
   incomingTransactions.forEach((transaction) => {
@@ -1528,6 +1531,30 @@ function reconcileTransactionsWithBalances(transactions) {
     .sort((a, b) => Number(a.sourceOrder || 0) - Number(b.sourceOrder || 0));
 }
 
+function reconcileStoredStatementTransactions(transactions) {
+  if (!Array.isArray(transactions) || transactions.length === 0) {
+    return transactions;
+  }
+
+  const groups = new Map();
+  transactions.forEach((transaction) => {
+    const key = `${transaction.account || "Unknown"}|${transaction.importBatch || ""}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(transaction);
+  });
+
+  const out = [];
+  groups.forEach((group) => {
+    const ordered = [...group].sort(compareStatementOrder);
+    const hasBalance = ordered.some((transaction) => Number.isFinite(Number(transaction.balance)));
+    out.push(...(hasBalance ? reconcileTransactionsWithBalances(ordered) : ordered));
+  });
+
+  return sortTransactionsByStatementOrder(out);
+}
+
 function scoreBalanceDirection(rows, direction) {
   let matches = 0;
   let checked = 0;
@@ -1548,6 +1575,10 @@ function scoreBalanceDirection(rows, direction) {
 }
 
 function applyBalanceCheck(transaction, index, rows, direction) {
+  if (transaction.reviewedAt) {
+    return { ...transaction, balanceCheck: transaction.balanceCheck || "" };
+  }
+
   const balanceDelta = getBalanceDelta(rows, index, direction);
   if (balanceDelta === null) {
     return { ...transaction, balanceCheck: transaction.balanceCheck || "" };
@@ -1559,7 +1590,8 @@ function applyBalanceCheck(transaction, index, rows, direction) {
   }
 
   const rowAmount = Math.max(Number(transaction.income) || 0, Number(transaction.spending) || 0);
-  if (rowAmount > 0 && moneyAlmostEqual(Math.abs(balanceDelta), rowAmount)) {
+  const allowFlip = rowAmount > 0 && (transaction.needsReconcile || moneyAlmostEqual(Math.abs(balanceDelta), rowAmount));
+  if (allowFlip) {
     return {
       ...transaction,
       income: balanceDelta > 0 ? roundMoney(Math.abs(balanceDelta)) : 0,
@@ -1715,9 +1747,26 @@ function parseLooseStatementLine(line, sourceOrder = 0) {
   const amount = parseMoneyValue(amountText);
   const balanceText = amountMatches.length > 1 ? amountMatches[amountMatches.length - 1][0] : "";
   const balance = amountMatches.length > 1 && balanceText !== amountText ? parseOptionalMoneyValue(balanceText) : null;
-  const incomeWords = /\b(salary|wage|payroll|deposit|refund|credit|credited|paid in|interest paid|transfer from)\b/i;
-  const spending = amount < 0 ? Math.abs(amount) : incomeWords.test(line) ? 0 : Math.abs(amount);
-  const income = amount > 0 && incomeWords.test(line) ? amount : 0;
+  const debitWords = /\b(payment|withdrawal|debit|purchase|atm|standing order|direct debit|bill|charge|fee|paid out|transfer to|spent)\b/i;
+  const incomeWords = /\b(salary|wage|payroll|deposit|refund|credit|credited|paid in|interest paid|transfer from|received|reimbursement|cashback|bacs in|faster payment in)\b/i;
+  const explicitNegative = /[-(]\s*[£$€₹]?\s*\d/.test(amountText) || /\bdr\b/i.test(line);
+  const explicitPositive = /\bcr\b/i.test(line);
+  const looksDebit = debitWords.test(line);
+  const looksIncome = incomeWords.test(line);
+  let direction;
+  if (amount < 0 || explicitNegative) {
+    direction = "out";
+  } else if (explicitPositive || (looksIncome && !looksDebit)) {
+    direction = "in";
+  } else if (looksDebit && !looksIncome) {
+    direction = "out";
+  } else {
+    direction = null;
+  }
+  const magnitude = Math.abs(amount);
+  const spending = direction === "out" ? magnitude : direction === null ? magnitude : 0;
+  const income = direction === "in" ? magnitude : 0;
+  const needsReconcile = direction === null;
   const date = parseStatementDate(dateMatch[0]);
   let description = line.replace(dateMatch[0], " ");
   amountMatches.forEach((match) => {
@@ -1741,6 +1790,7 @@ function parseLooseStatementLine(line, sourceOrder = 0) {
     balanceCheck: "",
     sourceOrder,
     category: categorizeStatement(description),
+    needsReconcile,
   };
 }
 
@@ -3015,7 +3065,17 @@ function renderTransactionReview() {
     return;
   }
 
-  transactionReviewList.innerHTML = rows
+  const header = `<div class="transaction-row is-header" role="row">
+    <div>Transaction</div>
+    <div class="transaction-money-header">Money in</div>
+    <div class="transaction-money-header">Money out</div>
+    <div class="transaction-money-header">Balance</div>
+    <div>Account</div>
+    <div>Category</div>
+    <div>Type</div>
+    <div></div>
+  </div>`;
+  transactionReviewList.innerHTML = header + rows
     .slice(0, 80)
     .map(renderTransactionRow)
     .join("");
@@ -3057,9 +3117,15 @@ function getVisibleStatementTransactions() {
 }
 
 function renderTransactionRow(transaction) {
-  const amount = transaction.income > 0 ? transaction.income : transaction.spending;
-  const amountLabel = `${transaction.income > 0 ? "+" : "-"}${formatMoney(amount, "GBP")}`;
-  const balanceLabel = Number.isFinite(Number(transaction.balance)) ? ` · Balance ${formatMoney(transaction.balance, "GBP")}` : "";
+  const hasIncome = Number(transaction.income) > 0;
+  const hasSpending = Number(transaction.spending) > 0;
+  const hasBalance = Number.isFinite(Number(transaction.balance));
+  const moneyInLabel = hasIncome ? formatMoney(transaction.income, "GBP") : "—";
+  const moneyOutLabel = hasSpending ? formatMoney(transaction.spending, "GBP") : "—";
+  const balanceLabel = hasBalance ? formatMoney(transaction.balance, "GBP") : "—";
+  const moneyInClass = hasIncome ? "positive" : "is-empty";
+  const moneyOutClass = hasSpending ? "negative" : "is-empty";
+  const balanceClass = hasBalance ? "" : "is-empty";
   const balanceCheckLabel = transaction.balanceCheck ? ` · ${getBalanceCheckLabel(transaction.balanceCheck)}` : "";
   const categoryOptions = [...new Set([...categories, transaction.category])]
     .filter(Boolean)
@@ -3085,9 +3151,11 @@ function renderTransactionRow(transaction) {
       <div class="transaction-main">
         <div class="transaction-date">${formatDate(transaction.date)}</div>
         <input class="merchant-input" data-field="merchant" value="${escapeHtml(titleCase(transaction.merchant))}" aria-label="Merchant">
-        <p>${escapeHtml(getStatementOrderLabel(transaction))} · ${escapeHtml(normalizeAccount(transaction.account))} · ${escapeHtml(transaction.description)}${escapeHtml(balanceLabel)}${escapeHtml(balanceCheckLabel)}</p>
+        <p>${escapeHtml(getStatementOrderLabel(transaction))} · ${escapeHtml(normalizeAccount(transaction.account))} · ${escapeHtml(transaction.description)}${escapeHtml(balanceCheckLabel)}</p>
       </div>
-      <strong class="transaction-amount ${transaction.income > 0 ? "positive" : "negative"}">${amountLabel}</strong>
+      <span class="transaction-money ${moneyInClass}" data-label="Money in">${moneyInLabel}</span>
+      <span class="transaction-money ${moneyOutClass}" data-label="Money out">${moneyOutLabel}</span>
+      <span class="transaction-money ${balanceClass}" data-label="Balance">${balanceLabel}</span>
       <select data-field="account" aria-label="Transaction account">${accountOptions}</select>
       <select data-field="category" aria-label="Transaction category">${categoryOptions}</select>
       <select data-field="type" aria-label="Transaction type">${typeOptions}</select>
