@@ -1292,7 +1292,10 @@ button:disabled {
 
 .transaction-row {
   display: grid;
-  grid-template-columns: minmax(230px, 1.7fr) minmax(110px, auto) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(110px, 0.65fr) auto;
+  grid-template-columns:
+    minmax(230px, 1.6fr)
+    minmax(95px, 0.7fr) minmax(95px, 0.7fr) minmax(100px, 0.7fr)
+    minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(110px, 0.65fr) auto;
   gap: 10px;
   align-items: center;
   border: 1px solid var(--line);
@@ -1304,6 +1307,44 @@ button:disabled {
 .transaction-row.is-excluded {
   opacity: 0.72;
   background: var(--panel);
+}
+
+.transaction-row.is-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 10px 12px;
+}
+
+.transaction-money-header {
+  text-align: right;
+}
+
+.transaction-money {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.transaction-money.positive {
+  color: var(--teal-dark);
+}
+
+.transaction-money.negative {
+  color: var(--red);
+}
+
+.transaction-money.is-empty {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .transaction-main {
@@ -1333,12 +1374,6 @@ button:disabled {
   min-width: 0;
   padding: 9px 10px;
   font-weight: 800;
-}
-
-.transaction-amount {
-  justify-self: end;
-  font-size: 0.98rem;
-  overflow-wrap: anywhere;
 }
 
 .planning-section {
@@ -1996,7 +2031,11 @@ svg .chart-line-scenario {
   }
 
   .transaction-row {
-    grid-template-columns: minmax(220px, 1fr) minmax(100px, auto);
+    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(80px, 1fr));
+  }
+
+  .transaction-row.is-header {
+    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(80px, 1fr));
   }
 
   .transaction-row select,
@@ -2123,8 +2162,12 @@ svg .chart-line-scenario {
     grid-template-columns: 1fr 88px;
   }
 
-  .transaction-amount {
+  .transaction-money {
     justify-self: start;
+  }
+
+  .transaction-money-header {
+    text-align: left;
   }
 
   .history-card {
