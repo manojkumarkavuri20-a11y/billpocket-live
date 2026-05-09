@@ -34,6 +34,7 @@
         <a href="#statementsSection">Statements</a>
         <a href="#analystSection">Analyst</a>
         <a href="#plannerSection">Planner</a>
+        <a href="#simulatorSection">Simulator</a>
         <a href="#toolsSection">Tools</a>
         <a href="#privacySection">Privacy</a>
       </div>
@@ -423,6 +424,107 @@
         </div>
         <p class="muted">BillPocket stores data only in this browser's local storage. Uploaded statement files are read for analysis; the original files are not saved.</p>
         <div id="privacyReportList" class="privacy-report-list"></div>
+      </section>
+
+      <section class="simulator-section panel" id="simulatorSection" aria-labelledby="simulatorTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">What happens if I…</p>
+            <h2 id="simulatorTitle">Life decisions</h2>
+          </div>
+          <p class="muted sim-privacy-note">All scenarios are stored only in this browser. No data leaves this device.</p>
+        </div>
+
+        <div class="simulator-layout">
+          <div class="simulator-form-area">
+            <form id="simulatorForm" autocomplete="off">
+              <input id="simScenarioId" type="hidden">
+
+              <label>
+                Scenario name
+                <input id="simName" maxlength="60" placeholder="Move city, salary raise, cut subs…" required>
+              </label>
+
+              <div class="field-row">
+                <label>
+                  Start month
+                  <input id="simStartMonth" type="month" required>
+                </label>
+                <label>
+                  Duration
+                  <select id="simDuration">
+                    <option value="3">3 months</option>
+                    <option value="6">6 months</option>
+                    <option value="12" selected>12 months</option>
+                    <option value="24">24 months</option>
+                  </select>
+                </label>
+              </div>
+
+              <fieldset class="sim-fieldset">
+                <legend>Income change</legend>
+                <label>
+                  Monthly income change (GBP)
+                  <input id="simIncomeDelta" type="number" step="1" placeholder="+500 raise, −200 reduction">
+                </label>
+              </fieldset>
+
+              <fieldset class="sim-fieldset">
+                <legend>Housing</legend>
+                <label>
+                  Rent or mortgage change per month (GBP)
+                  <input id="simRentDelta" type="number" step="1" placeholder="+300 increase, −150 saving">
+                </label>
+                <label>
+                  One-off cost — moving, deposit, travel, repairs (GBP)
+                  <input id="simOneOffCost" type="number" min="0" step="1" placeholder="e.g. 2000">
+                </label>
+              </fieldset>
+
+              <fieldset class="sim-fieldset">
+                <legend>Spending reductions</legend>
+                <label>
+                  Subscription savings per month (GBP)
+                  <input id="simSubSavings" type="number" min="0" step="1" placeholder="e.g. 25">
+                </label>
+                <div class="sim-cat-grid" id="simCatGrid"></div>
+              </fieldset>
+
+              <fieldset class="sim-fieldset">
+                <legend>Savings goal</legend>
+                <label>
+                  Apply scenario surplus toward goal
+                  <select id="simGoalSelect">
+                    <option value="">— no goal —</option>
+                  </select>
+                </label>
+              </fieldset>
+
+              <div class="button-row">
+                <button class="primary-button" type="submit">Run simulation</button>
+                <button class="ghost-button" id="simSaveButton" type="button" disabled>Save scenario</button>
+                <button class="ghost-button" id="simResetButton" type="button">New</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="simulator-output-area" id="simOutput">
+            <p class="muted">Fill in the form and click <strong>Run simulation</strong> to see the monthly cashflow impact.</p>
+            <p class="muted">Uses your saved bills, budgets, and statement history. Adjusts confidence based on available data.</p>
+          </div>
+        </div>
+
+        <div class="sim-charts" id="simCharts"></div>
+
+        <div class="sim-saved-panel">
+          <div class="section-heading">
+            <div>
+              <h3>Saved scenarios</h3>
+              <p class="muted">Stored only in this browser — no account needed.</p>
+            </div>
+          </div>
+          <div id="simScenarioList" class="sim-scenario-list" aria-live="polite"></div>
+        </div>
       </section>
 
       <section class="tools-grid" id="toolsSection" aria-label="BillPocket tools">
