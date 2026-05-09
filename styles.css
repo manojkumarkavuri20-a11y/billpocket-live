@@ -1589,6 +1589,381 @@ button:disabled {
   display: none;
 }
 
+/* ── Life Decisions Simulator ──────────────────────────────────────────────── */
+
+.simulator-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.sim-privacy-note {
+  max-width: 320px;
+  text-align: right;
+  font-size: 0.82rem;
+  align-self: center;
+}
+
+.simulator-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.simulator-form-area {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 16px;
+}
+
+.simulator-form-area form {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+}
+
+.sim-fieldset legend {
+  padding: 0 6px;
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sim-cat-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.sim-cat-label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.sim-cat-label span {
+  font-weight: 700;
+}
+
+.sim-cat-label input {
+  width: 88px;
+  text-align: right;
+}
+
+.sim-cat-hint {
+  font-size: 0.82rem;
+}
+
+.simulator-output-area {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 240px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 16px;
+}
+
+.sim-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sim-metric {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 10px 12px;
+}
+
+.sim-metric span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.sim-metric strong {
+  font-size: 1.08rem;
+}
+
+.positive {
+  color: var(--teal-dark);
+}
+
+.negative {
+  color: var(--red);
+}
+
+.confidence-high {
+  color: var(--teal-dark);
+}
+
+.confidence-med {
+  color: var(--amber);
+}
+
+.confidence-low {
+  color: var(--red);
+}
+
+.sim-confidence-note {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.sim-goal-impact {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 12px;
+}
+
+.sim-goal-impact h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.sim-goal-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sim-goal-compare div {
+  display: grid;
+  gap: 2px;
+}
+
+.sim-goal-compare span {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sim-goal-diff {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.sim-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.sim-actions h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.sim-action-item {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  align-items: start;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.sim-action-item p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sim-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 850;
+  padding-top: 1px;
+}
+
+.sim-action-warning {
+  background: var(--amber-soft);
+  border: 1px solid #e5c97c;
+}
+
+.sim-action-warning .sim-action-icon {
+  color: var(--amber);
+}
+
+.sim-action-save {
+  background: var(--green-soft);
+  border: 1px solid #a8d8c8;
+}
+
+.sim-action-save .sim-action-icon {
+  color: var(--teal-dark);
+}
+
+.sim-action-cut {
+  background: var(--blue-soft);
+  border: 1px solid #bcd4f0;
+}
+
+.sim-action-cut .sim-action-icon {
+  color: var(--blue);
+}
+
+.sim-action-cancel {
+  background: var(--rose-soft);
+  border: 1px solid #e4b8cc;
+}
+
+.sim-action-cancel .sim-action-icon {
+  color: #a02068;
+}
+
+.sim-action-ok {
+  background: var(--green-soft);
+  border: 1px solid #a8d8c8;
+}
+
+.sim-action-ok .sim-action-icon {
+  color: var(--teal-dark);
+}
+
+.sim-charts {
+  display: grid;
+  gap: 14px;
+}
+
+.sim-charts-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.sim-chart-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 14px;
+}
+
+.sim-chart-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sim-chart-card.wide-chart {
+  grid-column: 1 / -1;
+}
+
+.sim-goal-chart-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-goal-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.sim-goal-bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.sim-saved-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.sim-saved-panel h3 {
+  margin: 0;
+}
+
+.sim-scenario-list {
+  display: grid;
+  gap: 10px;
+}
+
+.sim-saved-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 12px 14px;
+}
+
+.sim-saved-info h4 {
+  margin: 0 0 4px;
+  font-size: 0.96rem;
+}
+
+.sim-saved-info p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.sim-danger-note {
+  color: var(--amber) !important;
+  margin-top: 3px !important;
+}
+
+.sim-saved-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* chart-scenario color for simulator */
+.chart-scenario {
+  fill: var(--blue);
+}
+
+svg .chart-line-muted {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+svg .chart-line-scenario {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2.5;
+}
+
 @media (max-width: 1080px) {
   .tools-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1635,6 +2010,18 @@ button:disabled {
 
   .history-card {
     grid-column: span 2;
+  }
+
+  .simulator-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-charts-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1719,8 +2106,21 @@ button:disabled {
   .account-settings-form,
   .overlap-controls,
   .compact-form,
-  .planner-item {
+  .planner-item,
+  .sim-metrics,
+  .sim-goal-compare,
+  .sim-saved-card,
+  .sim-goal-bar-row {
     grid-template-columns: 1fr;
+  }
+
+  .sim-saved-actions {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+
+  .sim-cat-label {
+    grid-template-columns: 1fr 88px;
   }
 
   .transaction-amount {
