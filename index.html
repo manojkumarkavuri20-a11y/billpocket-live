@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="BillPocket — local-only bill tracker and spending analyser for subscriptions, recurring bills, budgets, and bank statement review. No account, no server, no cloud.">
+    <meta name="theme-color" content="#0f8b8d">
+    <meta property="og:title" content="BillPocket">
+    <meta property="og:description" content="Track every bill. Zero cloud. Zero cost. A fully local bill tracker and spending analyser.">
+    <meta property="og:type" content="website">
+    <title>BillPocket — Local Bill Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Skip to app</a>
+
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Local bill tracker</p>
+        <h1>BillPocket</h1>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-button theme-button" id="themeToggle" type="button">Dark mode</button>
+        <div class="privacy-chip">Your data stays on this device.</div>
+      </div>
+    </header>
+
+    <nav class="app-nav" aria-label="App sections">
+      <div class="app-nav-scroll">
+        <a class="active" href="#dashboardSection">Dashboard</a>
+        <a href="#billsSection">Bills</a>
+        <a href="#insightsSection">Insights</a>
+        <a href="#chartsSection">Charts</a>
+        <a href="#statementsSection">Statements</a>
+        <a href="#analystSection">Analyst</a>
+        <a href="#plannerSection">Planner</a>
+        <a href="#toolsSection">Tools</a>
+        <a href="#privacySection">Privacy</a>
+      </div>
+    </nav>
+
+    <main class="app-shell" id="mainContent">
+      <section class="summary-grid" id="dashboardSection" aria-label="Bill summary">
+        <article class="metric">
+          <span class="metric-label">Monthly total</span>
+          <strong id="monthlyTotal">GBP 0.00</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Yearly estimate</span>
+          <strong id="yearlyTotal">GBP 0.00</strong>
+        </article>
+        <article class="metric warning">
+          <span class="metric-label">Due soon</span>
+          <strong id="dueSoonCount">0</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Active bills</span>
+          <strong id="activeCount">0</strong>
+        </article>
+      </section>
+
+      <div class="workspace" id="billsSection">
+        <section class="panel form-panel" aria-labelledby="formTitle">
+          <div class="section-heading">
+            <h2 id="formTitle">Add bill</h2>
+            <button class="ghost-button" id="resetFormButton" type="button">Clear</button>
+          </div>
+
+          <form id="billForm" autocomplete="off">
+            <input id="billId" type="hidden">
+
+            <label>
+              Bill name
+              <input id="name" name="name" required maxlength="60" placeholder="Netflix, rent, gym">
+            </label>
+
+            <div class="field-row">
+              <label>
+                Amount
+                <input id="amount" name="amount" required type="number" min="0" step="0.01" placeholder="12.99">
+              </label>
+              <label>
+                Currency
+                <select id="currency" name="currency">
+                  <option value="GBP">GBP</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="INR">INR</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Next due date
+              <input id="nextDueDate" name="nextDueDate" required type="date">
+            </label>
+
+            <div class="field-row">
+              <label>
+                Repeats
+                <select id="frequency" name="frequency">
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </label>
+              <label>
+                Category
+                <select id="category" name="category">
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Note
+              <textarea id="note" name="note" maxlength="180" rows="3" placeholder="Optional"></textarea>
+            </label>
+
+            <button class="primary-button" id="saveButton" type="submit">Save bill</button>
+          </form>
+        </section>
+
+        <section class="panel bills-panel" aria-labelledby="billsTitle">
+          <div class="section-heading bills-heading">
+            <div>
+              <h2 id="billsTitle">Bills</h2>
+              <p id="statusLine" class="muted">No saved bills yet.</p>
+            </div>
+            <div class="list-controls">
+              <input id="searchInput" aria-label="Search bills" placeholder="Search bills">
+              <select id="statusFilter" aria-label="Filter bills">
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <select id="sortMode" aria-label="Sort bills">
+                <option value="due">Due date</option>
+                <option value="amount">Amount</option>
+                <option value="name">Name</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="emptyState" class="empty-state">
+            <h3>Start with one bill</h3>
+            <p>Add a rent payment, subscription, phone plan, or any repeating cost.</p>
+          </div>
+
+          <div id="billList" class="bill-list" aria-live="polite"></div>
+        </section>
+      </div>
+
+      <section class="insights-grid" id="insightsSection" aria-label="Spending insights">
+        <article class="panel insight-panel" aria-labelledby="insightsTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Insights</p>
+              <h2 id="insightsTitle">Spending picture</h2>
+            </div>
+          </div>
+          <div id="insightSummary" class="insight-summary"></div>
+          <div id="categoryBreakdown" class="breakdown-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel insight-panel" aria-labelledby="calendarTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Calendar</p>
+              <h2 id="calendarTitle">Next 30 days</h2>
+            </div>
+          </div>
+          <div id="upcomingTimeline" class="timeline-list" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <section class="visual-section panel" id="chartsSection" aria-labelledby="visualTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Visual insights</p>
+            <h2 id="visualTitle">Charts</h2>
+          </div>
+        </div>
+        <div class="visual-grid">
+          <article class="chart-card wide-chart">
+            <h3>Earned vs spent</h3>
+            <div id="incomeSpendChart" class="chart-shell"></div>
+          </article>
+          <article class="chart-card">
+            <h3>Category spend</h3>
+            <div id="categoryDonutChart" class="chart-shell donut-shell"></div>
+          </article>
+          <article class="chart-card">
+            <h3>Net cashflow</h3>
+            <div id="cashflowChart" class="chart-shell"></div>
+          </article>
+          <article class="chart-card wide-chart">
+            <h3>Budget progress</h3>
+            <div id="budgetChart" class="chart-shell"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="statement-section panel" id="statementsSection" aria-labelledby="statementTitle">
+        <div class="section-heading statement-heading">
+          <div>
+            <p class="eyebrow">Bank statement</p>
+            <h2 id="statementTitle">Local spending scan</h2>
+          </div>
+          <div class="statement-actions">
+            <label class="statement-account-picker">
+              Account
+              <select id="statementAccountInput">
+                <option value="auto">Auto detect</option>
+              </select>
+            </label>
+            <button class="ghost-button" id="statementUploadButton" type="button">Upload files</button>
+            <input id="statementFileInput" type="file" accept=".csv,.tsv,.txt,.pdf,.docx,.xlsx,.ofx,.qif,text/csv,text/tab-separated-values,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+            <button class="ghost-button" id="statementFolderButton" type="button">Upload folder</button>
+            <input id="statementFolderInput" type="file" webkitdirectory directory multiple hidden>
+            <button class="ghost-button" id="clearStatementButton" type="button">Delete history</button>
+          </div>
+        </div>
+        <p id="statementMessage" class="muted">Upload statement files or a folder. New transactions are merged into saved local history on this device.</p>
+        <div class="statement-paste">
+          <label>
+            Paste statement text
+            <textarea id="statementTextInput" rows="4" placeholder="Copy text from a PDF or document and paste it here if upload cannot read it cleanly."></textarea>
+          </label>
+          <button class="primary-button" id="analyzeStatementTextButton" type="button">Analyze text</button>
+        </div>
+        <div class="statement-results">
+          <article class="scan-card">
+            <h3>Spending summary</h3>
+            <div id="statementSummary" class="scan-summary"></div>
+          </article>
+          <article class="scan-card">
+            <h3>Detected subscriptions</h3>
+            <div id="subscriptionFindings" class="finding-list"></div>
+          </article>
+          <article class="scan-card advice-card">
+            <h3>Saving suggestions</h3>
+            <div id="savingSuggestions" class="finding-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="analyst-section panel" id="analystSection" aria-labelledby="analystTitle">
+        <div class="section-heading analyst-heading">
+          <div>
+            <p class="eyebrow">Analyst</p>
+            <h2 id="analystTitle">Money decision center</h2>
+          </div>
+          <div class="button-row compact-actions">
+            <button class="ghost-button" id="downloadMonthlyReportButton" type="button">Download report</button>
+            <button class="ghost-button" id="printMonthlyReportButton" type="button">Print / save PDF</button>
+          </div>
+        </div>
+
+        <div class="analyst-metrics">
+          <article class="analysis-card score-card">
+            <h3>Financial health</h3>
+            <div id="healthScoreCard" class="score-content"></div>
+          </article>
+          <article class="analysis-card">
+            <h3>Safe to spend</h3>
+            <div id="safeToSpendCard" class="analysis-content"></div>
+          </article>
+          <article class="analysis-card">
+            <h3>Savings rate</h3>
+            <div id="savingsRateCard" class="analysis-content"></div>
+          </article>
+          <article class="analysis-card">
+            <h3>Import confidence</h3>
+            <div id="importConfidenceCard" class="analysis-content"></div>
+          </article>
+        </div>
+
+        <div class="analyst-grid">
+          <article class="analysis-card">
+            <h3>Cashflow forecast</h3>
+            <div id="cashflowForecast" class="analysis-list"></div>
+          </article>
+          <article class="analysis-card">
+            <h3>Smart recommendations</h3>
+            <div id="smartRecommendations" class="analysis-list"></div>
+          </article>
+          <article class="analysis-card">
+            <h3>Scenario planner</h3>
+            <div class="scenario-controls">
+              <label>
+                Flexible spending cut
+                <div class="range-row">
+                  <input id="scenarioCutRange" type="range" min="0" max="35" step="5" value="10">
+                  <input id="scenarioCutValue" type="number" min="0" max="35" step="5" value="10" aria-label="Flexible spending cut percent">
+                </div>
+              </label>
+              <label>
+                Cancel cost per month
+                <input id="scenarioCancelInput" type="number" min="0" step="0.01" placeholder="0.00">
+              </label>
+              <label>
+                Put savings toward
+                <select id="scenarioGoalInput"></select>
+              </label>
+            </div>
+            <div id="scenarioResult" class="analysis-content"></div>
+          </article>
+          <article class="analysis-card account-overlap-card">
+            <h3>Account overlap filter</h3>
+            <div id="accountOverlapSummary" class="analysis-content"></div>
+            <form id="accountSettingsForm" class="account-settings-form" autocomplete="off">
+              <input id="newOwnAccount" maxlength="32" placeholder="Add own account">
+              <button class="ghost-button" type="submit">Add</button>
+            </form>
+            <div id="ownAccountList" class="account-chip-list" aria-live="polite"></div>
+            <div class="overlap-controls">
+              <label>
+                Match window
+                <input id="transferWindowInput" type="number" min="0" max="7" step="1" aria-label="Transfer match days">
+              </label>
+              <label>
+                Amount tolerance %
+                <input id="transferToleranceInput" type="number" min="0" max="10" step="0.1" aria-label="Transfer amount tolerance percent">
+              </label>
+            </div>
+            <button class="primary-button" id="autoDetectTransfersButton" type="button">Auto-detect own transfers</button>
+          </article>
+        </div>
+
+        <article class="analysis-card transaction-review-card">
+          <div class="section-heading review-heading">
+            <div>
+              <h3>Transaction review</h3>
+              <p id="transactionReviewStatus" class="muted">Review imported items and correct categories before trusting the insights.</p>
+            </div>
+          </div>
+          <div class="review-controls">
+            <input id="transactionSearchInput" aria-label="Search transactions" placeholder="Search merchant or description">
+            <select id="transactionMonthFilter" aria-label="Filter transaction month"></select>
+            <select id="transactionAccountFilter" aria-label="Filter transaction account"></select>
+            <select id="transactionCategoryFilter" aria-label="Filter transaction category"></select>
+            <select id="transactionTypeFilter" aria-label="Filter transaction type">
+              <option value="all">All types</option>
+              <option value="spending">Spending</option>
+              <option value="income">Income</option>
+              <option value="salary">Salary</option>
+              <option value="transfer">Transfer</option>
+              <option value="refund">Refund</option>
+              <option value="ignore">Ignored</option>
+            </select>
+            <select id="transactionSortMode" aria-label="Sort transactions">
+              <option value="statement" selected>Statement order</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="amount">Amount</option>
+              <option value="merchant">Merchant</option>
+            </select>
+          </div>
+          <div id="transactionReviewList" class="transaction-review-list" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <section class="planning-section panel" id="plannerSection" aria-labelledby="planningTitle">
+        <div class="section-heading planning-heading">
+          <div>
+            <p class="eyebrow">Money planner</p>
+            <h2 id="planningTitle">Budgets, goals, and alerts</h2>
+          </div>
+        </div>
+        <div class="planning-grid">
+          <article class="planner-card">
+            <h3>Smart budgets</h3>
+            <form id="budgetForm" class="compact-form" autocomplete="off">
+              <select id="budgetCategory" aria-label="Budget category"></select>
+              <input id="budgetLimit" type="number" min="0" step="0.01" placeholder="Monthly limit">
+              <button class="primary-button" type="submit">Set</button>
+            </form>
+            <div id="budgetList" class="planner-list"></div>
+          </article>
+
+          <article class="planner-card">
+            <h3>Price change alerts</h3>
+            <div id="priceAlerts" class="planner-list"></div>
+          </article>
+
+          <article class="planner-card">
+            <h3>Cancel planner</h3>
+            <form id="cancelForm" class="compact-form" autocomplete="off">
+              <input id="cancelName" maxlength="60" placeholder="Service to cancel">
+              <input id="cancelSaving" type="number" min="0" step="0.01" placeholder="Monthly saving">
+              <button class="primary-button" type="submit">Track</button>
+            </form>
+            <div id="cancelList" class="planner-list"></div>
+          </article>
+
+          <article class="planner-card">
+            <h3>Savings goals</h3>
+            <form id="goalForm" class="compact-form" autocomplete="off">
+              <input id="goalName" maxlength="50" placeholder="Goal name">
+              <input id="goalTarget" type="number" min="0" step="0.01" placeholder="Target">
+              <input id="goalSaved" type="number" min="0" step="0.01" placeholder="Saved">
+              <button class="primary-button" type="submit">Add</button>
+            </form>
+            <div id="goalList" class="planner-list"></div>
+          </article>
+
+          <article class="planner-card history-card">
+            <h3>Statement history</h3>
+            <div id="statementHistory" class="planner-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="privacy-section panel" id="privacySection" aria-labelledby="privacyTitle">
+        <div class="section-heading privacy-heading">
+          <div>
+            <p class="eyebrow">Privacy report</p>
+            <h2 id="privacyTitle">Stored on this device</h2>
+          </div>
+          <button class="ghost-button danger-button" id="wipeAllButton" type="button">Delete all local data</button>
+        </div>
+        <p class="muted">BillPocket stores data only in this browser's local storage. Uploaded statement files are read for analysis; the original files are not saved.</p>
+        <div id="privacyReportList" class="privacy-report-list"></div>
+      </section>
+
+      <section class="tools-grid" id="toolsSection" aria-label="BillPocket tools">
+        <article class="panel tool-panel" aria-labelledby="exportTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Export</p>
+              <h2 id="exportTitle">Data backup</h2>
+            </div>
+          </div>
+          <div class="button-row">
+            <button class="ghost-button" id="exportJsonButton" type="button">JSON</button>
+            <button class="ghost-button" id="exportCsvButton" type="button">CSV</button>
+            <button class="ghost-button" id="importJsonButton" type="button">Restore</button>
+            <input id="importJsonInput" type="file" accept="application/json,.json" hidden>
+          </div>
+          <p id="exportMessage" class="muted">Downloads are created on this device.</p>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="categoryTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Categories</p>
+              <h2 id="categoryTitle">Custom list</h2>
+            </div>
+          </div>
+          <form id="categoryForm" class="inline-form" autocomplete="off">
+            <label>
+              New category
+              <input id="newCategory" maxlength="28" placeholder="Pets, Software, Travel">
+            </label>
+            <button class="primary-button" type="submit">Add</button>
+          </form>
+          <div id="categoryList" class="tag-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="reminderTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Reminders</p>
+              <h2 id="reminderTitle">Due alerts</h2>
+            </div>
+          </div>
+          <div class="field-row">
+            <label>
+              Alert window
+              <select id="reminderDays">
+                <option value="1">1 day</option>
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+              </select>
+            </label>
+            <label>
+              Browser alerts
+              <select id="reminderMode">
+                <option value="off">Off</option>
+                <option value="on">On</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button class="ghost-button" id="notificationButton" type="button">Enable alerts</button>
+            <button class="ghost-button" id="checkRemindersButton" type="button">Check now</button>
+          </div>
+          <p id="reminderMessage" class="muted">Reminders run while this page is open.</p>
+        </article>
+
+        <article class="panel tool-panel import-panel" aria-labelledby="gmailTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Import</p>
+              <h2 id="gmailTitle">Email receipts</h2>
+            </div>
+          </div>
+          <label>
+            Paste receipt text
+            <textarea id="emailText" rows="5" placeholder="Paste a receipt or renewal email here"></textarea>
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="parseEmailButton" type="button">Find subscription</button>
+            <button class="ghost-button" id="gmailFutureButton" type="button">Gmail connect</button>
+          </div>
+          <p id="importMessage" class="muted">Automatic Gmail import needs Google sign-in and Gmail API approval.</p>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
