@@ -4865,7 +4865,11 @@ function loadSimulatorScenarios() {
 }
 
 function saveSimulatorScenarios() {
-  localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorScenarios));
+  if (simulatorScenarios.length === 0) {
+    localStorage.removeItem(SIMULATOR_KEY);
+  } else {
+    localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorScenarios));
+  }
   renderPrivacyReport();
 }
 
@@ -4939,10 +4943,12 @@ function getSimulatorBaseline() {
   const scan = buildStatementScan(analyzed);
   const months = Math.max(1, scan.dateRange.months);
   const monthlyIncome = roundMoney(scan.totalIncome / months);
-  const monthlySpend = roundMoney(scan.totalSpend / months);
-  const monthlySurplus = roundMoney(monthlyIncome - monthlySpend);
   const activeBills = bills.filter((bill) => bill.status === "active" && bill.currency === "GBP");
   const monthlyBills = roundMoney(activeBills.reduce((sum, bill) => sum + monthlyEquivalent(bill), 0));
+  const statementSpend = roundMoney(scan.totalSpend / months);
+  const monthlySpend = roundMoney(statementSpend > 0 ? statementSpend : monthlyBills);
+  const monthlySurplus = roundMoney(monthlyIncome - monthlySpend);
+  const safe = getSafeToSpendSnapshot();
   const hasStatements = analyzed.length >= 5;
   const hasBills = activeBills.length > 0;
   let confidence = "low";
@@ -4956,6 +4962,8 @@ function getSimulatorBaseline() {
     monthlySpend,
     monthlyBills,
     monthlySurplus,
+    safeToSpend: safe.safeAmount,
+    startingBuffer: roundMoney(Math.max(0, safe.safeAmount)),
     hasStatements,
     hasBills,
     confidence,
@@ -4976,15 +4984,23 @@ function runSimulation(scenario) {
 
   const [startYear, startMonthNum] = scenario.startMonth.split("-").map(Number);
   const monthly = [];
+  let baselineBuffer = baseline.startingBuffer;
+  let scenarioBuffer = baseline.startingBuffer;
   for (let i = 0; i < duration; i++) {
     const date = new Date(startYear, startMonthNum - 1 + i, 1);
     const label = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     const scenarioThisMonth = roundMoney(scenarioSurplus - (i === 0 ? oneOffCost : 0));
+    baselineBuffer = roundMoney(baselineBuffer + baseline.monthlySurplus);
+    scenarioBuffer = roundMoney(scenarioBuffer + scenarioThisMonth);
+    const dangerBills = scenarioBuffer < 0 ? getSimulatorDangerBills(label) : [];
     monthly.push({
       month: label,
       baseline: baseline.monthlySurplus,
       scenario: scenarioThisMonth,
-      isDanger: scenarioThisMonth < 0,
+      baselineBuffer,
+      scenarioBuffer,
+      dangerBills,
+      isDanger: scenarioBuffer < 0,
     });
   }
 
@@ -5027,7 +5043,11 @@ function buildSimulatorActions(scenario, baseline, scenarioSurplus, dangerMonths
   const spendingCuts = Object.entries(scenario.spendingCuts || {});
 
   if (dangerMonths.length > 0) {
-    actions.push({ type: "warning", text: `Cash shortfall in ${dangerMonths.length} month${dangerMonths.length === 1 ? "" : "s"} — plan extra income or cut costs before committing.` });
+    const firstDanger = dangerMonths[0];
+    const billText = firstDanger.dangerBills.length
+      ? ` Watch ${firstDanger.dangerBills.map((bill) => `${bill.name} on ${formatDate(bill.date)}`).join(", ")}.`
+      : "";
+    actions.push({ type: "warning", text: `Cash shortfall by ${formatMonthLabel(firstDanger.month)} across ${dangerMonths.length} month${dangerMonths.length === 1 ? "" : "s"}.${billText} Plan extra income or cut costs before committing.` });
   }
 
   if (oneOffCost > 0) {
@@ -5066,6 +5086,31 @@ function buildSimulatorActions(scenario, baseline, scenarioSurplus, dangerMonths
   }
 
   return actions;
+}
+
+function getSimulatorDangerBills(monthValue) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const start = startOfDay(new Date(year, month - 1, 1));
+  const end = startOfDay(new Date(year, month, 0));
+  const dueBills = [];
+
+  bills
+    .filter((bill) => bill.status === "active" && bill.currency === "GBP")
+    .forEach((bill) => {
+      let due = parseLocalDate(bill.nextDueDate);
+      while (due <= end) {
+        if (due >= start) {
+          dueBills.push({
+            name: bill.name,
+            date: toDateInputValue(due),
+            amount: Number(bill.amount || 0),
+          });
+        }
+        due = advanceDateByFrequency(due, bill.frequency);
+      }
+    });
+
+  return dueBills.sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date) || a.name.localeCompare(b.name)).slice(0, 4);
 }
 
 function renderSimulator() {
@@ -5143,6 +5188,10 @@ function renderSimulatorOutput(result) {
         <strong class="${dangerMonths.length > 0 ? "negative" : "positive"}">${dangerMonths.length > 0 ? dangerMonths.length : "None"}</strong>
       </div>
       <div class="sim-metric">
+        <span class="muted">Safe to spend now</span>
+        <strong class="${baseline.safeToSpend >= 0 ? "positive" : "negative"}">${formatMoney(baseline.safeToSpend, "GBP")}</strong>
+      </div>
+      <div class="sim-metric">
         <span class="muted">Confidence</span>
         <strong class="${confidenceClasses[baseline.confidence]}">${escapeHtml(baseline.confidence)}</strong>
       </div>
@@ -5173,7 +5222,7 @@ function renderSimulatorCharts(result) {
         <div id="simCompareChart" class="chart-shell"></div>
       </article>
       <article class="sim-chart-card">
-        <h3>Cashflow projection</h3>
+        <h3>Projected buffer</h3>
         <div id="simCashflowChart" class="chart-shell"></div>
       </article>
       ${goalImpact ? `<article class="sim-chart-card"><h3>Goal progress impact</h3><div id="simGoalChart" class="sim-goal-chart-shell"></div></article>` : ""}
@@ -5261,7 +5310,7 @@ function renderSimCashflowProjectionChart(monthly) {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const visible = monthly.slice(0, 12);
-  const allValues = visible.flatMap((m) => [m.baseline, m.scenario]);
+  const allValues = visible.flatMap((m) => [m.baselineBuffer, m.scenarioBuffer]);
   const minValue = Math.min(0, ...allValues);
   const maxValue = Math.max(1, ...allValues);
   const range = maxValue - minValue || 1;
@@ -5270,17 +5319,17 @@ function renderSimCashflowProjectionChart(monthly) {
   const getX = (index) => padding.left + (visible.length === 1 ? chartWidth / 2 : (index / (visible.length - 1)) * chartWidth);
   const getY = (value) => padding.top + chartHeight - ((value - minValue) / range) * chartHeight;
 
-  const baselinePoints = visible.map((m, i) => `${getX(i)},${getY(m.baseline)}`).join(" ");
-  const scenarioPoints = visible.map((m, i) => `${getX(i)},${getY(m.scenario)}`).join(" ");
+  const baselinePoints = visible.map((m, i) => `${getX(i)},${getY(m.baselineBuffer)}`).join(" ");
+  const scenarioPoints = visible.map((m, i) => `${getX(i)},${getY(m.scenarioBuffer)}`).join(" ");
 
   const dots = visible
     .map(
       (m, i) => `
-      <circle class="${m.baseline >= 0 ? "chart-income" : "chart-spend"}" cx="${getX(i)}" cy="${getY(m.baseline)}" r="4">
-        <title>${formatShortMonth(m.month)} baseline: ${formatMoney(m.baseline, "GBP")}</title>
+      <circle class="${m.baselineBuffer >= 0 ? "chart-income" : "chart-spend"}" cx="${getX(i)}" cy="${getY(m.baselineBuffer)}" r="4">
+        <title>${formatShortMonth(m.month)} baseline buffer: ${formatMoney(m.baselineBuffer, "GBP")}</title>
       </circle>
-      <circle class="${m.scenario >= 0 ? "chart-scenario" : "chart-spend"}" cx="${getX(i)}" cy="${getY(m.scenario)}" r="4">
-        <title>${formatShortMonth(m.month)} scenario: ${formatMoney(m.scenario, "GBP")}</title>
+      <circle class="${m.scenarioBuffer >= 0 ? "chart-scenario" : "chart-spend"}" cx="${getX(i)}" cy="${getY(m.scenarioBuffer)}" r="4">
+        <title>${formatShortMonth(m.month)} scenario buffer: ${formatMoney(m.scenarioBuffer, "GBP")}</title>
       </circle>
       <text class="chart-label" x="${getX(i)}" y="${height - 18}" text-anchor="middle">${formatShortMonth(m.month)}</text>
     `,
@@ -5288,7 +5337,7 @@ function renderSimCashflowProjectionChart(monthly) {
     .join("");
 
   container.innerHTML = `
-    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly cashflow projection line chart">
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Projected buffer line chart">
       <line class="chart-axis" x1="${padding.left}" y1="${zeroY}" x2="${width - padding.right}" y2="${zeroY}"></line>
       <polyline class="chart-line chart-line-muted" points="${baselinePoints}"></polyline>
       <polyline class="chart-line chart-line-scenario" points="${scenarioPoints}"></polyline>

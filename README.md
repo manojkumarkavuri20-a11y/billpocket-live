@@ -15,7 +15,8 @@ BillPocket is a fully local bill tracker and spending analyser for subscriptions
 | **Insights** | Spending breakdown by category, top bills, trend detection |
 | **Charts** | Visual bar and pie-style breakdowns of your spending |
 | **Statements** | Upload CSV / TSV / TXT / PDF / DOCX / XLSX / OFX / QIF bank exports for local analysis |
-| **Analyst** | Scenario modelling — see what happens if you cut spending or cancel a subscription |
+| **Analyst** | Safe-to-spend, savings rate, cashflow forecast, and recommendations |
+| **Simulator** | Life Decisions what-if planning for salary, rent, moving costs, subscriptions, and goals |
 | **Planner** | Savings goals and cancellation planner with statement history |
 | **Tools** | JSON / CSV export, data restore, custom categories, browser reminders, email-receipt import |
 | **Privacy** | Full audit of what is stored in localStorage, with one-click wipe |
@@ -41,6 +42,7 @@ window, or any setup step.
 
 - All data is stored exclusively in **this browser's localStorage**.
 - Uploaded statement files are read locally for analysis; the original files are **never saved** by the app.
+- Saved Life Decisions simulator scenarios stay only in this browser.
 - BillPocket makes **no network requests** — it does not connect to banks, send telemetry, or upload anything.
 
 ---
