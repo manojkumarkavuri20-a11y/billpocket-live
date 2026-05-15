@@ -647,7 +647,7 @@ function inferTransactionType(transaction) {
 
 function looksLikeIncomeText(transaction) {
   const text = `${transaction.description || ""} ${transaction.merchant || ""}`.toLowerCase();
-  return /\b(salary|wage|payroll|paye|payslip|employer|deposit|paid in|interest paid|dividend|credit from|credited)\b/.test(text) || salaryWords.some((word) => text.includes(word));
+  return /\b(salary|wage|payroll|paye|payslip|employer|deposit|paid in|interest paid|dividend|credit from|credited|fpi|faster payment in)\b/.test(text) || salaryWords.some((word) => text.includes(word));
 }
 
 function isTransactionExcluded(transaction) {
@@ -1747,8 +1747,9 @@ function parseLooseStatementLine(line, sourceOrder = 0) {
   const amount = parseMoneyValue(amountText);
   const balanceText = amountMatches.length > 1 ? amountMatches[amountMatches.length - 1][0] : "";
   const balance = amountMatches.length > 1 && balanceText !== amountText ? parseOptionalMoneyValue(balanceText) : null;
-  const debitWords = /\b(payment|withdrawal|debit|purchase|atm|standing order|direct debit|bill|charge|fee|paid out|transfer to|spent)\b/i;
-  const incomeWords = /\b(salary|wage|payroll|deposit|refund|credit|credited|paid in|interest paid|transfer from|received|reimbursement|cashback|bacs in|faster payment in)\b/i;
+  const directionHint = getStatementDirectionHint(line);
+  const debitWords = /\b(payment|withdrawal|debit|purchase|atm|standing order|direct debit|bill|charge|fee|paid out|transfer to|spent|fpo|faster payment out)\b/i;
+  const incomeWords = /\b(salary|wage|payroll|deposit|refund|credit|credited|paid in|interest paid|transfer from|received|reimbursement|cashback|bacs in|fpi|faster payment in)\b/i;
   const explicitNegative = /[-(]\s*[£$€₹]?\s*\d/.test(amountText) || /\bdr\b/i.test(line);
   const explicitPositive = /\bcr\b/i.test(line);
   const looksDebit = debitWords.test(line);
@@ -1756,6 +1757,8 @@ function parseLooseStatementLine(line, sourceOrder = 0) {
   let direction;
   if (amount < 0 || explicitNegative) {
     direction = "out";
+  } else if (directionHint) {
+    direction = directionHint;
   } else if (explicitPositive || (looksIncome && !looksDebit)) {
     direction = "in";
   } else if (looksDebit && !looksIncome) {
@@ -1866,11 +1869,23 @@ function isStatementNonTransactionText(value) {
   return headerLike || balanceSummary || balanceOnly || noMerchantText;
 }
 
+function getStatementDirectionHint(value) {
+  const text = normalizeKeyText(value);
+  if (/\b(fpi|faster payment in|paid in|money in|bacs in|credit from|credited|received)\b/.test(text)) {
+    return "in";
+  }
+  if (/\b(fpo|faster payment out|paid out|money out|direct debit|debit|card payment|purchase|withdrawal)\b/.test(text)) {
+    return "out";
+  }
+  return "";
+}
+
 function detectStatementColumns(header) {
   const findIndex = (terms) => header.findIndex((label) => terms.some((term) => label.includes(term)));
   return {
     date: findIndex(["date", "posted", "transaction date"]),
     description: findIndex(["description", "details", "narrative", "merchant", "payee", "name", "reference"]),
+    type: findIndex(["type", "transaction type"]),
     amount: findIndex(["amount", "value", "transaction amount"]),
     debit: findIndex(["debit", "paid out", "money out", "withdrawal", "spent"]),
     credit: findIndex(["credit", "paid in", "money in", "deposit"]),
@@ -1881,13 +1896,26 @@ function detectStatementColumns(header) {
 function normalizeStatementRow(row, indexes, rowIndex = 0) {
   const dateValue = row[indexes.date] || row[0] || "";
   const description = row[indexes.description] || row[1] || "Transaction";
+  const typeText = indexes.type >= 0 ? row[indexes.type] || "" : "";
   const amount = indexes.amount >= 0 ? parseMoneyValue(row[indexes.amount]) : 0;
   const debit = indexes.debit >= 0 ? parseMoneyValue(row[indexes.debit]) : 0;
   const credit = indexes.credit >= 0 ? parseMoneyValue(row[indexes.credit]) : 0;
   const balance = indexes.balance >= 0 ? parseOptionalMoneyValue(row[indexes.balance]) : null;
-  const spending = indexes.debit >= 0 && debit !== 0 ? Math.abs(debit) : amount < 0 ? Math.abs(amount) : 0;
-  const income = indexes.credit >= 0 && credit !== 0 ? Math.abs(credit) : amount > 0 ? amount : 0;
+  const directionHint = getStatementDirectionHint(`${typeText} ${description}`);
+  let spending = indexes.debit >= 0 && debit !== 0 ? Math.abs(debit) : amount < 0 ? Math.abs(amount) : 0;
+  let income = indexes.credit >= 0 && credit !== 0 ? Math.abs(credit) : amount > 0 ? amount : 0;
+  const visibleAmount = Math.max(Math.abs(debit), Math.abs(credit), Math.abs(amount));
   const date = parseStatementDate(dateValue);
+
+  if (directionHint === "in" && visibleAmount > 0) {
+    income = visibleAmount;
+    spending = 0;
+  }
+
+  if (directionHint === "out" && visibleAmount > 0) {
+    spending = visibleAmount;
+    income = 0;
+  }
 
   if (!date) {
     return null;
