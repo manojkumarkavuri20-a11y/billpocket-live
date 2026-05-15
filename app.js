@@ -581,8 +581,17 @@ function normalizeStoredTransaction(transaction, fallbackOrder = 0) {
   const account = normalizeAccount(transaction.account || transaction.sourceAccount || detectStatementAccount(transaction.sourceName || description));
   const key = transaction.key || getTransactionKey({ date, merchant, spending, income, description, account });
   const storedType = transaction.reviewedAt ? transaction.type : "";
-  const type = normalizeTransactionType(storedType || inferTransactionType({ description, spending, income, account }));
+  const directionHint = getStatementDirectionHint(description);
+  let type = normalizeTransactionType(storedType || inferTransactionType({ description, spending, income, account }));
   const amount = Math.max(spending, income);
+
+  if (directionHint === "in" && type === "spending") {
+    type = "income";
+  }
+
+  if (directionHint === "out" && !transaction.reviewedAt && (type === "income" || type === "salary" || type === "refund")) {
+    type = "spending";
+  }
 
   if ((type === "income" || type === "salary" || type === "refund") && income <= 0 && spending > 0) {
     income = amount;
