@@ -9,7 +9,7 @@
     <meta property="og:description" content="Track every bill. Zero cloud. Zero cost. A fully local bill tracker and spending analyser.">
     <meta property="og:type" content="website">
     <title>BillPocket — Local Bill Tracker</title>
-    <link rel="stylesheet" href="styles.css?v=20260515-fpi2">
+    <link rel="stylesheet" href="styles.css?v=20260516-simple1">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to app</a>
@@ -27,16 +27,13 @@
 
     <nav class="app-nav" aria-label="App sections">
       <div class="app-nav-scroll">
-        <a class="active" href="#dashboardSection">Dashboard</a>
+        <a class="active" href="#dashboardSection">Home</a>
         <a href="#billsSection">Bills</a>
-        <a href="#insightsSection">Insights</a>
+        <a href="#statementsSection">Upload statement</a>
+        <a href="#analystSection">Check rows</a>
         <a href="#chartsSection">Charts</a>
-        <a href="#statementsSection">Statements</a>
-        <a href="#analystSection">Analyst</a>
-        <a href="#plannerSection">Planner</a>
-        <a href="#simulatorSection">Simulator</a>
+        <a href="#simulatorSection">Plan</a>
         <a href="#toolsSection">Tools</a>
-        <a href="#privacySection">Privacy</a>
       </div>
     </nav>
 
@@ -58,6 +55,36 @@
           <span class="metric-label">Active bills</span>
           <strong id="activeCount">0</strong>
         </article>
+      </section>
+
+      <section class="quick-start panel" aria-labelledby="quickStartTitle">
+        <div>
+          <p class="eyebrow">Simple flow</p>
+          <h2 id="quickStartTitle">Start here</h2>
+          <p>Use BillPocket in this order: add bills, upload a statement, check the rows, then read the insights. Your data stays in this browser.</p>
+        </div>
+        <div class="quick-start-grid" aria-label="BillPocket workflow">
+          <a class="quick-step" href="#billsSection">
+            <span>1</span>
+            <strong>Add bills</strong>
+            <small>Rent, subscriptions, phone, gym, and repeat costs.</small>
+          </a>
+          <a class="quick-step" href="#statementsSection">
+            <span>2</span>
+            <strong>Upload statement</strong>
+            <small>CSV is best. PDF works when the text is readable.</small>
+          </a>
+          <a class="quick-step" href="#analystSection">
+            <span>3</span>
+            <strong>Check rows</strong>
+            <small>Money In is received. Money Out is spent.</small>
+          </a>
+          <a class="quick-step" href="#simulatorSection">
+            <span>4</span>
+            <strong>Plan changes</strong>
+            <small>Use budgets and simulator after the rows look right.</small>
+          </a>
+        </div>
       </section>
 
       <div class="workspace" id="billsSection">
@@ -207,7 +234,7 @@
         <div class="section-heading statement-heading">
           <div>
             <p class="eyebrow">Bank statement</p>
-            <h2 id="statementTitle">Local spending scan</h2>
+            <h2 id="statementTitle">Upload statement</h2>
           </div>
           <div class="statement-actions">
             <label class="statement-account-picker">
@@ -223,7 +250,22 @@
             <button class="ghost-button" id="clearStatementButton" type="button">Delete history</button>
           </div>
         </div>
-        <p id="statementMessage" class="muted">Upload statement files or a folder. New transactions are merged into saved local history on this device.</p>
+        <p id="statementMessage" class="muted">Upload or paste a statement first. Then check the transaction rows before trusting totals.</p>
+        <div class="plain-meaning-grid" aria-label="Statement column meanings">
+          <div>
+            <strong>Money In</strong>
+            <span>Money received into the account, such as salary, refunds, or FPI.</span>
+          </div>
+          <div>
+            <strong>Money Out</strong>
+            <span>Money paid out from the account, such as card payments, bills, or FPO.</span>
+          </div>
+          <div>
+            <strong>Balance</strong>
+            <span>The account balance after that row in the statement.</span>
+          </div>
+        </div>
+        <p class="trust-note">If a row looks wrong, change its Type or Category in Check rows. BillPocket recalculates locally.</p>
         <div class="statement-paste">
           <label>
             Paste statement text
@@ -250,14 +292,46 @@
       <section class="analyst-section panel" id="analystSection" aria-labelledby="analystTitle">
         <div class="section-heading analyst-heading">
           <div>
-            <p class="eyebrow">Analyst</p>
-            <h2 id="analystTitle">Money decision center</h2>
+            <p class="eyebrow">Check data</p>
+            <h2 id="analystTitle">Review & insights</h2>
           </div>
           <div class="button-row compact-actions">
             <button class="ghost-button" id="downloadMonthlyReportButton" type="button">Download report</button>
             <button class="ghost-button" id="printMonthlyReportButton" type="button">Print / save PDF</button>
           </div>
         </div>
+
+        <article class="analysis-card transaction-review-card">
+          <div class="section-heading review-heading">
+            <div>
+              <h3>Check transactions</h3>
+              <p id="transactionReviewStatus" class="muted">Check this table first. If a row is wrong, change Type or Category here.</p>
+            </div>
+          </div>
+          <div class="review-controls">
+            <input id="transactionSearchInput" aria-label="Search transactions" placeholder="Search merchant or description">
+            <select id="transactionMonthFilter" aria-label="Filter transaction month"></select>
+            <select id="transactionAccountFilter" aria-label="Filter transaction account"></select>
+            <select id="transactionCategoryFilter" aria-label="Filter transaction category"></select>
+            <select id="transactionTypeFilter" aria-label="Filter transaction type">
+              <option value="all">All types</option>
+              <option value="spending">Spending - money out</option>
+              <option value="income">Income - money in</option>
+              <option value="salary">Salary - money in</option>
+              <option value="transfer">Transfer - own accounts</option>
+              <option value="refund">Refund - money in</option>
+              <option value="ignore">Ignored</option>
+            </select>
+            <select id="transactionSortMode" aria-label="Sort transactions">
+              <option value="statement" selected>Statement order</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="amount">Amount</option>
+              <option value="merchant">Merchant</option>
+            </select>
+          </div>
+          <div id="transactionReviewList" class="transaction-review-list" aria-live="polite"></div>
+        </article>
 
         <div class="analyst-metrics">
           <article class="analysis-card score-card">
@@ -273,7 +347,7 @@
             <div id="savingsRateCard" class="analysis-content"></div>
           </article>
           <article class="analysis-card">
-            <h3>Import confidence</h3>
+            <h3>Import check</h3>
             <div id="importConfidenceCard" class="analysis-content"></div>
           </article>
         </div>
@@ -288,7 +362,7 @@
             <div id="smartRecommendations" class="analysis-list"></div>
           </article>
           <article class="analysis-card">
-            <h3>Scenario planner</h3>
+            <h3>Quick saving idea</h3>
             <div class="scenario-controls">
               <label>
                 Flexible spending cut
@@ -329,38 +403,6 @@
             <button class="primary-button" id="autoDetectTransfersButton" type="button">Auto-detect own transfers</button>
           </article>
         </div>
-
-        <article class="analysis-card transaction-review-card">
-          <div class="section-heading review-heading">
-            <div>
-              <h3>Transaction review</h3>
-              <p id="transactionReviewStatus" class="muted">Review imported items and correct categories before trusting the insights.</p>
-            </div>
-          </div>
-          <div class="review-controls">
-            <input id="transactionSearchInput" aria-label="Search transactions" placeholder="Search merchant or description">
-            <select id="transactionMonthFilter" aria-label="Filter transaction month"></select>
-            <select id="transactionAccountFilter" aria-label="Filter transaction account"></select>
-            <select id="transactionCategoryFilter" aria-label="Filter transaction category"></select>
-            <select id="transactionTypeFilter" aria-label="Filter transaction type">
-              <option value="all">All types</option>
-              <option value="spending">Spending</option>
-              <option value="income">Income</option>
-              <option value="salary">Salary</option>
-              <option value="transfer">Transfer</option>
-              <option value="refund">Refund</option>
-              <option value="ignore">Ignored</option>
-            </select>
-            <select id="transactionSortMode" aria-label="Sort transactions">
-              <option value="statement" selected>Statement order</option>
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="amount">Amount</option>
-              <option value="merchant">Merchant</option>
-            </select>
-          </div>
-          <div id="transactionReviewList" class="transaction-review-list" aria-live="polite"></div>
-        </article>
       </section>
 
       <section class="planning-section panel" id="plannerSection" aria-labelledby="planningTitle">
@@ -613,6 +655,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260515-fpi2"></script>
+    <script src="app.js?v=20260516-simple1"></script>
   </body>
 </html>

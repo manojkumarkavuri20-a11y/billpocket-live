@@ -6,6 +6,17 @@ BillPocket is a fully local bill tracker and spending analyser for subscriptions
 
 ---
 
+## Simple workflow
+
+1. Add regular bills.
+2. Upload or paste a statement.
+3. Check the transaction rows before trusting totals.
+4. Use insights, charts, budgets, and simulator after the rows look right.
+
+Money In means money received into the account, Money Out means money paid out, and Balance means the account balance after that row.
+
+---
+
 ## Features
 
 | Section | What it does |

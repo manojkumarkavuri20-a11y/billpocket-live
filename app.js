@@ -527,7 +527,7 @@ function renderStoredStatementState() {
 
   latestStatementScan = buildStatementScan(getAnalyzedTransactions());
   renderStatementScan(latestStatementScan);
-  statementMessage.textContent = `Loaded ${statementTransactions.length} saved statement transaction${statementTransactions.length === 1 ? "" : "s"} from this device. New uploads will merge into this history.`;
+  statementMessage.textContent = `Loaded ${statementTransactions.length} saved statement transaction${statementTransactions.length === 1 ? "" : "s"} from this device. Check rows before trusting totals. New uploads merge into this history.`;
 }
 
 function mergeStatementTransactions(incomingTransactions) {
@@ -991,7 +991,7 @@ function analyzePastedStatementText() {
 function analyzeStatementText(text, sourceLabel) {
   const transactions = parseStatementText(text);
   if (transactions.length === 0) {
-    statementMessage.textContent = "No transactions were found. Try CSV, or copy statement text with dates, descriptions, and amounts.";
+    statementMessage.textContent = "No transactions were found. Try CSV, or copy statement text with dates, descriptions, money in, money out, and balance.";
     renderStoredStatementState();
     return;
   }
@@ -1037,7 +1037,7 @@ function renderStatementTransactions(transactions, sourceLabels, skippedLabels) 
   const sourceText = sourceLabels.length === 1 ? sourceLabels[0] : `${sourceLabels.length} files`;
   const skippedText = skippedLabels.length ? ` Skipped ${skippedLabels.length}: ${skippedLabels.slice(0, 2).join("; ")}${skippedLabels.length > 2 ? "..." : ""}` : "";
   const balanceText = formatBalanceCheckSummary(getBalanceCheckSummary(transactions));
-  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}.${balanceText}${skippedText}`;
+  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}. Next: open Check rows and confirm Money In, Money Out, and Balance.${balanceText}${skippedText}`;
 }
 
 async function extractStatementTextFromFile(file) {
@@ -3089,13 +3089,13 @@ function renderTransactionReviewFilters() {
 function renderTransactionReview() {
   if (statementTransactions.length === 0) {
     transactionReviewStatus.textContent = "No saved statement transactions yet.";
-    transactionReviewList.innerHTML = `<p class="muted">Upload or paste a statement to review transactions here.</p>`;
+    transactionReviewList.innerHTML = `<p class="muted">Upload or paste a statement first. This table will then show what was received, what was spent, and the balance after each row.</p>`;
     return;
   }
 
   const rows = getVisibleStatementTransactions();
   const excludedCount = statementTransactions.filter(isTransactionExcluded).length;
-  transactionReviewStatus.textContent = `Showing ${rows.length} of ${statementTransactions.length}. ${excludedCount} excluded from analysis.`;
+  transactionReviewStatus.textContent = `Showing ${rows.length} of ${statementTransactions.length} rows. Money In means received. Money Out means spent. ${excludedCount} ignored or treated as own-account transfers.`;
 
   if (rows.length === 0) {
     transactionReviewList.innerHTML = `<p class="muted">No transactions match these filters.</p>`;
@@ -3104,9 +3104,9 @@ function renderTransactionReview() {
 
   const header = `<div class="transaction-row is-header" role="row">
     <div>Transaction</div>
-    <div class="transaction-money-header">Money in</div>
-    <div class="transaction-money-header">Money out</div>
-    <div class="transaction-money-header">Balance</div>
+    <div class="transaction-money-header">Money in (received)</div>
+    <div class="transaction-money-header">Money out (spent)</div>
+    <div class="transaction-money-header">Balance after</div>
     <div>Account</div>
     <div>Category</div>
     <div>Type</div>
@@ -3173,26 +3173,28 @@ function renderTransactionRow(transaction) {
     .map((account) => `<option value="${escapeHtml(account)}" ${normalizeAccount(transaction.account) === account ? "selected" : ""}>${escapeHtml(account)}</option>`)
     .join("");
   const typeOptions = [
-    ["spending", "Spending"],
-    ["income", "Income"],
-    ["salary", "Salary"],
-    ["transfer", "Transfer"],
-    ["refund", "Refund"],
+    ["spending", "Spending - money out"],
+    ["income", "Income - money in"],
+    ["salary", "Salary - money in"],
+    ["transfer", "Transfer - own accounts"],
+    ["refund", "Refund - money in"],
     ["ignore", "Ignore"],
   ]
     .map(([value, label]) => `<option value="${value}" ${transaction.type === value || (transaction.excluded && value === "ignore") ? "selected" : ""}>${label}</option>`)
     .join("");
+
+  const directionLabel = hasIncome ? "Received into account" : hasSpending ? "Paid out of account" : titleCase(transaction.type || "No amount");
 
   return `
     <div class="transaction-row ${isTransactionExcluded(transaction) ? "is-excluded" : ""}" data-transaction-id="${escapeHtml(transaction.id)}">
       <div class="transaction-main">
         <div class="transaction-date">${formatDate(transaction.date)}</div>
         <input class="merchant-input" data-field="merchant" value="${escapeHtml(titleCase(transaction.merchant))}" aria-label="Merchant">
-        <p>${escapeHtml(getStatementOrderLabel(transaction))} · ${escapeHtml(normalizeAccount(transaction.account))} · ${escapeHtml(transaction.description)}${escapeHtml(balanceCheckLabel)}</p>
+        <p>${escapeHtml(getStatementOrderLabel(transaction))} · ${escapeHtml(directionLabel)} · ${escapeHtml(normalizeAccount(transaction.account))} · ${escapeHtml(transaction.description)}${escapeHtml(balanceCheckLabel)}</p>
       </div>
-      <span class="transaction-money ${moneyInClass}" data-label="Money in">${moneyInLabel}</span>
-      <span class="transaction-money ${moneyOutClass}" data-label="Money out">${moneyOutLabel}</span>
-      <span class="transaction-money ${balanceClass}" data-label="Balance">${balanceLabel}</span>
+      <span class="transaction-money ${moneyInClass}" data-label="Money in received">${moneyInLabel}</span>
+      <span class="transaction-money ${moneyOutClass}" data-label="Money out spent">${moneyOutLabel}</span>
+      <span class="transaction-money ${balanceClass}" data-label="Balance after">${balanceLabel}</span>
       <select data-field="account" aria-label="Transaction account">${accountOptions}</select>
       <select data-field="category" aria-label="Transaction category">${categoryOptions}</select>
       <select data-field="type" aria-label="Transaction type">${typeOptions}</select>
