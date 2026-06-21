@@ -4,6 +4,7 @@
 
 let bills = loadBills();
 let categories = loadCategories();
+let categoryRules = loadCategoryRules();
 let simulatorScenarios = loadSimulatorScenarios();
 let currentSimResult = null;
 let accountSettings = loadAccountSettings();
@@ -20,6 +21,7 @@ let latestImportReport = null;
 
 applyTheme(loadTheme(), Boolean(localStorage.getItem(THEME_KEY)));
 renderCategories();
+renderCategoryRules();
 renderStatementAccountOptions();
 renderAccountSettings();
 applyReminderSettings();
@@ -103,6 +105,9 @@ transferWindowInput.addEventListener("change", saveAccountSettingsFromInputs);
 transferToleranceInput.addEventListener("change", saveAccountSettingsFromInputs);
 downloadMonthlyReportButton.addEventListener("click", downloadMonthlyReport);
 printMonthlyReportButton.addEventListener("click", printMonthlyReport);
+if (exportTransactionsCsvButton) exportTransactionsCsvButton.addEventListener("click", exportFilteredTransactionsCsv);
+if (findDuplicatesButton) findDuplicatesButton.addEventListener("click", renderDuplicateFindings);
+if (duplicateFindings) duplicateFindings.addEventListener("click", handleDuplicateAction);
 budgetForm.addEventListener("submit", saveBudget);
 goalForm.addEventListener("submit", addSavingsGoal);
 cancelForm.addEventListener("submit", addCancelPlan);
@@ -112,6 +117,8 @@ cancelList.addEventListener("click", handleCancelAction);
 privacyReportList.addEventListener("click", handlePrivacyDelete);
 wipeAllButton.addEventListener("click", wipeAllLocalData);
 categoryForm.addEventListener("submit", addCategory);
+if (categoryRuleForm) categoryRuleForm.addEventListener("submit", addCategoryRule);
+if (categoryRuleList) categoryRuleList.addEventListener("click", handleCategoryRuleAction);
 reminderDaysInput.addEventListener("change", saveReminderSettings);
 reminderModeInput.addEventListener("change", saveReminderSettings);
 notificationButton.addEventListener("click", requestNotificationAccess);

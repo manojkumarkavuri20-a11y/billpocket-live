@@ -12,6 +12,7 @@ const GOAL_KEY = "billpocket.goals.v1";
 const CANCEL_KEY = "billpocket.cancelPlanner.v1";
 const ACCOUNT_KEY = "billpocket.accountSettings.v1";
 const SIMULATOR_KEY = "billpocket.simulatorScenarios.v1";
+const CATEGORY_RULES_KEY = "billpocket.categoryRules.v1";
 const defaultCategories = ["Housing", "Utilities", "Entertainment", "Health", "Transport", "Learning", "Other"];
 const defaultOwnAccounts = ["HSBC", "Lloyds", "Revolut", "Monzo"];
 const defaultAccountSettings = {

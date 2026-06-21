@@ -934,7 +934,44 @@ function monthNameToIndex(value) {
 }
 
 function categorizeStatement(description) {
-  const text = description.toLowerCase();
-  const match = statementCategoryRules.find((rule) => rule.words.some((word) => text.includes(word)));
+  const text = String(description || "").toLowerCase();
+
+  // User-defined rules win and use plain substring matching for flexibility.
+  // `categoryRules` is declared in app.js; guard with typeof so the parser
+  // stays usable in isolation (e.g. the Node tests) where it is undefined.
+  const userRules = typeof categoryRules !== "undefined" && Array.isArray(categoryRules) ? categoryRules : [];
+  for (const rule of userRules) {
+    const needle = String(rule.match || "").trim().toLowerCase();
+    if (needle && text.includes(needle)) {
+      return rule.category || "Other";
+    }
+  }
+
+  const match = statementCategoryRules.find((rule) => rule.words.some((word) => matchesCategoryWord(text, word)));
   return match ? match.category : "Other";
+}
+
+// Whole-token match so short codes do not match inside larger words — e.g.
+// "tfl" (Transport) must not match "ne[tfl]ix" (Entertainment). Boundaries are
+// any non-alphanumeric character (or string edges). Multi-word phrases such as
+// "prime video" and tokens with digits like "o2" are handled correctly.
+function matchesCategoryWord(text, word) {
+  const needle = String(word || "").trim().toLowerCase();
+  if (!needle) {
+    return false;
+  }
+  let from = 0;
+  let index = text.indexOf(needle, from);
+  while (index !== -1) {
+    const before = index === 0 ? "" : text[index - 1];
+    const after = index + needle.length >= text.length ? "" : text[index + needle.length];
+    const boundaryBefore = before === "" || !/[a-z0-9]/.test(before);
+    const boundaryAfter = after === "" || !/[a-z0-9]/.test(after);
+    if (boundaryBefore && boundaryAfter) {
+      return true;
+    }
+    from = index + 1;
+    index = text.indexOf(needle, from);
+  }
+  return false;
 }

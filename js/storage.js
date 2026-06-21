@@ -170,6 +170,35 @@ function saveCategories() {
   renderPrivacyReport();
 }
 
+function loadCategoryRules() {
+  try {
+    const saved = localStorage.getItem(CATEGORY_RULES_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((rule) => ({
+        id: String(rule.id || createId()),
+        match: String(rule.match || "").trim().slice(0, 60),
+        category: String(rule.category || "Other").trim() || "Other",
+      }))
+      .filter((rule) => rule.match);
+  } catch (error) {
+    console.warn("Could not load category rules", error);
+    return [];
+  }
+}
+
+function saveCategoryRules() {
+  if (!Array.isArray(categoryRules) || categoryRules.length === 0) {
+    localStorage.removeItem(CATEGORY_RULES_KEY);
+  } else {
+    localStorage.setItem(CATEGORY_RULES_KEY, JSON.stringify(categoryRules));
+  }
+  renderPrivacyReport();
+}
+
 function loadReminderSettings() {
   try {
     const saved = localStorage.getItem(REMINDER_KEY);

@@ -298,6 +298,8 @@
           <div class="button-row compact-actions">
             <button class="ghost-button" id="downloadMonthlyReportButton" type="button">Download report</button>
             <button class="ghost-button" id="printMonthlyReportButton" type="button">Print / save PDF</button>
+            <button class="ghost-button" id="findDuplicatesButton" type="button">Find duplicates</button>
+            <button class="ghost-button" id="exportTransactionsCsvButton" type="button">Export filtered (CSV)</button>
           </div>
         </div>
 
@@ -331,6 +333,7 @@
             </select>
           </div>
           <div id="transactionReviewList" class="transaction-review-list" aria-live="polite"></div>
+          <div id="duplicateFindings" class="finding-list" aria-live="polite"></div>
         </article>
 
         <div class="analyst-metrics">
@@ -601,6 +604,29 @@
             <button class="primary-button" type="submit">Add</button>
           </form>
           <div id="categoryList" class="tag-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="categoryRuleTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Categories</p>
+              <h2 id="categoryRuleTitle">Auto-category rules</h2>
+            </div>
+          </div>
+          <p class="muted">When a transaction description contains your text, it is filed under the category you pick. Your rules are checked before the built-in list and apply to new and existing imports.</p>
+          <form id="categoryRuleForm" class="inline-form" autocomplete="off">
+            <label>
+              If description contains
+              <input id="categoryRuleMatch" maxlength="60" placeholder="amazon, acme corp, council tax">
+            </label>
+            <label>
+              File under
+              <select id="categoryRuleCategory" aria-label="Rule category"></select>
+            </label>
+            <button class="primary-button" type="submit">Add rule</button>
+          </form>
+          <p id="categoryRuleStatus" class="muted" aria-live="polite"></p>
+          <div id="categoryRuleList" class="tag-list" aria-live="polite"></div>
         </article>
 
         <article class="panel tool-panel" aria-labelledby="reminderTitle">

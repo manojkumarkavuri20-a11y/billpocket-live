@@ -390,6 +390,134 @@ function printMonthlyReport() {
   window.print();
 }
 
+function exportFilteredTransactionsCsv() {
+  const rows = getVisibleStatementTransactions();
+  if (rows.length === 0) {
+    statementMessage.textContent = "No transactions match the current filters to export.";
+    return;
+  }
+
+  const headers = ["date", "merchant", "description", "account", "category", "type", "moneyIn", "moneyOut", "balanceAfter"];
+  const lines = rows.map((transaction) =>
+    [
+      transaction.date,
+      titleCase(transaction.merchant),
+      transaction.description,
+      normalizeAccount(transaction.account),
+      transaction.category,
+      transaction.type,
+      Number(transaction.income) > 0 ? transaction.income : "",
+      Number(transaction.spending) > 0 ? transaction.spending : "",
+      Number.isFinite(Number(transaction.balance)) ? transaction.balance : "",
+    ]
+      .map(csvCell)
+      .join(",")
+  );
+
+  downloadFile(
+    `billpocket-transactions-${toDateInputValue(new Date())}.csv`,
+    [headers.join(","), ...lines].join("\n"),
+    "text/csv"
+  );
+  statementMessage.textContent = `Exported ${rows.length} filtered transaction${rows.length === 1 ? "" : "s"} to CSV from this browser.`;
+}
+
+// --- Duplicate detection ----------------------------------------------------
+// Groups rows that share the same date, the same amount, and a normalised
+// merchant key, so near-duplicate rows from overlapping statement uploads can
+// be reviewed and merged. Non-destructive until the user confirms a merge.
+function getDuplicateTransactionGroups() {
+  const groups = new Map();
+  statementTransactions.forEach((transaction) => {
+    const amount = roundMoney(Math.max(Number(transaction.spending) || 0, Number(transaction.income) || 0));
+    if (amount <= 0) {
+      return;
+    }
+    const merchantKey = normalizeMerchantCleanupKey(transaction.merchant || transaction.description);
+    if (!merchantKey) {
+      return;
+    }
+    const key = `${transaction.date}|${amount.toFixed(2)}|${merchantKey}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(transaction);
+  });
+
+  return [...groups.entries()]
+    .filter(([, items]) => items.length > 1)
+    .map(([key, items]) => ({ key, items }));
+}
+
+function renderDuplicateFindings() {
+  if (!duplicateFindings) {
+    return;
+  }
+
+  if (statementTransactions.length === 0) {
+    duplicateFindings.innerHTML = `<p class="muted">Upload a statement first, then check here for duplicate rows.</p>`;
+    return;
+  }
+
+  const groups = getDuplicateTransactionGroups();
+  if (groups.length === 0) {
+    duplicateFindings.innerHTML = `<p class="muted">No likely duplicates found — no rows share the same date, amount, and merchant.</p>`;
+    return;
+  }
+
+  duplicateFindings.innerHTML = groups
+    .map((group) => {
+      const first = group.items[0];
+      const amount = formatMoney(Math.max(first.spending, first.income), "GBP");
+      const detail = group.items
+        .map((transaction) => `<li>${escapeHtml(formatDate(transaction.date))} · ${escapeHtml(titleCase(transaction.merchant))} · ${escapeHtml(normalizeAccount(transaction.account))}</li>`)
+        .join("");
+      return `
+    <div class="finding-item">
+      <div>
+        <h4>${escapeHtml(titleCase(first.merchant))} · ${escapeHtml(amount)}</h4>
+        <p>${group.items.length} similar rows on ${escapeHtml(formatDate(first.date))}</p>
+        <ul class="muted duplicate-detail">${detail}</ul>
+      </div>
+      <button class="ghost-button" type="button" data-dup-key="${escapeHtml(group.key)}">Merge into one</button>
+    </div>`;
+    })
+    .join("");
+}
+
+function handleDuplicateAction(event) {
+  const button = event.target.closest("button[data-dup-key]");
+  if (!button) {
+    return;
+  }
+
+  const group = getDuplicateTransactionGroups().find((item) => item.key === button.dataset.dupKey);
+  if (!group || group.items.length < 2) {
+    renderDuplicateFindings();
+    return;
+  }
+
+  const confirmed = window.confirm(`Merge ${group.items.length} duplicate rows of ${titleCase(group.items[0].merchant)} into one?`);
+  if (!confirmed) {
+    return;
+  }
+
+  // Keep the richest row (longest description, known category/account, etc.)
+  // and drop the rest, reusing the import-time merge heuristic.
+  let best = group.items[0];
+  group.items.slice(1).forEach((item) => {
+    best = chooseBetterStatementTransaction(best, item);
+  });
+  const dropIds = new Set(group.items.filter((item) => item.id !== best.id).map((item) => item.id));
+
+  statementTransactions = statementTransactions
+    .filter((item) => !dropIds.has(item.id))
+    .map((item) => (item.id === best.id ? best : item));
+  saveStatementTransactions();
+  refreshStatementAnalyticsAfterReview();
+  renderDuplicateFindings();
+}
+
 function buildMonthlyReportText() {
   const health = getFinancialHealthSnapshot();
   const safe = getSafeToSpendSnapshot();

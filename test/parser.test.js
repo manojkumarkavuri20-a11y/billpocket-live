@@ -51,13 +51,15 @@ check("parseMoneyValue('£100')", api.parseMoneyValue("£100"), 100);
 check("parseMoneyValue('(45.00)')", api.parseMoneyValue("(45.00)"), -45);
 check("parseMoneyValue('1,234.56')", api.parseMoneyValue("1,234.56"), 1234.56);
 
-// --- categorizeStatement (unambiguous cases only) --------------------------
-// NOTE: "netflix" currently mis-maps to Transport because it contains the
-// substring "tfl"; that latent defect is addressed in the categorisation work,
-// so it is intentionally not asserted here.
+// --- categorizeStatement ----------------------------------------------------
 check("TESCO -> Groceries", api.categorizeStatement("TESCO STORES"), "Groceries");
 check("SPOTIFY -> Entertainment", api.categorizeStatement("SPOTIFY"), "Entertainment");
 check("Unknown -> Other", api.categorizeStatement("UNKNOWN XYZ"), "Other");
+// Word-boundary matching: "netflix" must NOT match Transport's "tfl" substring.
+check("NETFLIX -> Entertainment (not Transport)", api.categorizeStatement("NETFLIX.COM"), "Entertainment");
+// ...but a real "tfl" token is still Transport.
+check("TFL TRAVEL -> Transport", api.categorizeStatement("TFL TRAVEL CH"), "Transport");
+check("BP token -> Transport", api.categorizeStatement("BP GARAGE"), "Transport");
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

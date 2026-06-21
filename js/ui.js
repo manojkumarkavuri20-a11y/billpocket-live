@@ -67,6 +67,13 @@ function getPrivacyRows() {
       count: categories.filter((category) => !defaultCategories.includes(category)).length,
     },
     {
+      id: "categoryRules",
+      label: "Auto-category rules",
+      description: "Your merchant-to-category matching rules.",
+      key: CATEGORY_RULES_KEY,
+      count: Array.isArray(categoryRules) ? categoryRules.length : 0,
+    },
+    {
       id: "reminders",
       label: "Reminder settings",
       description: "Alert window, mode, and last reminder state.",
@@ -168,6 +175,13 @@ function deletePrivacyDataset(id) {
     renderTransactionReview();
   }
 
+  if (id === "categoryRules") {
+    categoryRules = [];
+    saveCategoryRules();
+    renderCategoryRules();
+    applyCategoryRulesToTransactions();
+  }
+
   if (id === "categories") {
     categories = [...defaultCategories];
     saveCategories();
@@ -201,9 +215,10 @@ function wipeAllLocalData() {
     return;
   }
 
-  [STORAGE_KEY, STATEMENT_KEY, BUDGET_KEY, GOAL_KEY, CANCEL_KEY, CATEGORY_KEY, ACCOUNT_KEY, REMINDER_KEY, THEME_KEY, SIMULATOR_KEY].forEach((key) => localStorage.removeItem(key));
+  [STORAGE_KEY, STATEMENT_KEY, BUDGET_KEY, GOAL_KEY, CANCEL_KEY, CATEGORY_KEY, CATEGORY_RULES_KEY, ACCOUNT_KEY, REMINDER_KEY, THEME_KEY, SIMULATOR_KEY].forEach((key) => localStorage.removeItem(key));
   bills = [];
   categories = [...defaultCategories];
+  categoryRules = [];
   accountSettings = { ...defaultAccountSettings, accounts: [...defaultOwnAccounts] };
   reminderSettings = { days: 7, mode: "off", lastNotified: "" };
   statementTransactions = [];
@@ -216,6 +231,7 @@ function wipeAllLocalData() {
 
   applyTheme("light", false);
   renderCategories();
+  renderCategoryRules();
   renderStatementAccountOptions();
   renderAccountSettings();
   applyReminderSettings();
@@ -292,7 +308,98 @@ function removeCategory(category) {
   saveCategories();
   saveBills();
   renderCategories();
+  renderCategoryRules();
   render();
+}
+
+function renderCategoryRules() {
+  if (!categoryRuleList) {
+    return;
+  }
+
+  if (categoryRuleCategoryInput) {
+    const selected = categoryRuleCategoryInput.value;
+    categoryRuleCategoryInput.innerHTML = categories
+      .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+      .join("");
+    if (categories.includes(selected)) {
+      categoryRuleCategoryInput.value = selected;
+    }
+  }
+
+  if (!Array.isArray(categoryRules) || categoryRules.length === 0) {
+    categoryRuleList.innerHTML = `<p class="muted">No custom rules yet. Add one to override how a merchant is filed, e.g. text "amazon" → Shopping.</p>`;
+    return;
+  }
+
+  categoryRuleList.innerHTML = categoryRules
+    .map(
+      (rule) =>
+        `<span class="tag">${escapeHtml(rule.match)} → ${escapeHtml(rule.category)}<button type="button" data-rule-id="${escapeHtml(rule.id)}">Remove</button></span>`
+    )
+    .join("");
+}
+
+function addCategoryRule(event) {
+  event.preventDefault();
+  const match = String(categoryRuleMatchInput.value || "").trim();
+  if (!match) {
+    return;
+  }
+  const category = categoryRuleCategoryInput.value || "Other";
+
+  categoryRules = [
+    { id: createId(), match: match.slice(0, 60), category },
+    ...categoryRules.filter((rule) => rule.match.toLowerCase() !== match.toLowerCase()),
+  ];
+  saveCategoryRules();
+  categoryRuleMatchInput.value = "";
+  renderCategoryRules();
+
+  const changed = applyCategoryRulesToTransactions();
+  if (categoryRuleStatus) {
+    categoryRuleStatus.textContent = changed > 0 ? `Rule added. Re-filed ${changed} transaction${changed === 1 ? "" : "s"}.` : "Rule added. It will apply to new imports.";
+  }
+}
+
+function handleCategoryRuleAction(event) {
+  const button = event.target.closest("button[data-rule-id]");
+  if (!button) {
+    return;
+  }
+
+  categoryRules = categoryRules.filter((rule) => rule.id !== button.dataset.ruleId);
+  saveCategoryRules();
+  renderCategoryRules();
+  const changed = applyCategoryRulesToTransactions();
+  if (categoryRuleStatus) {
+    categoryRuleStatus.textContent = changed > 0 ? `Rule removed. Re-filed ${changed} transaction${changed === 1 ? "" : "s"}.` : "Rule removed.";
+  }
+}
+
+// Re-run categorisation over saved transactions after the rules change.
+// Manually reviewed rows and income/transfer rows are left untouched.
+function applyCategoryRulesToTransactions() {
+  let changed = 0;
+  statementTransactions = statementTransactions.map((transaction) => {
+    if (transaction.reviewedAt || ["transfer", "salary", "income"].includes(transaction.type)) {
+      return transaction;
+    }
+    const next = categorizeStatement(transaction.description);
+    if (next !== transaction.category) {
+      changed += 1;
+      return { ...transaction, category: next, updatedAt: new Date().toISOString() };
+    }
+    return transaction;
+  });
+
+  if (changed > 0) {
+    saveStatementTransactions();
+    if (statementTransactions.length > 0) {
+      refreshStatementAnalyticsAfterReview();
+    }
+  }
+  return changed;
 }
 
 function applyReminderSettings() {
@@ -370,6 +477,7 @@ function exportJson() {
     cancelPlans,
     accountSettings,
     simulatorScenarios,
+    categoryRules,
   };
   downloadFile("billpocket-backup.json", JSON.stringify(payload, null, 2), "application/json");
   exportMessage.textContent = "JSON backup downloaded.";
@@ -416,6 +524,11 @@ function importJsonBackup(event) {
       cancelPlans = Array.isArray(payload.cancelPlans) ? payload.cancelPlans : cancelPlans;
       accountSettings = normalizeAccountSettings(payload.accountSettings || accountSettings);
       simulatorScenarios = Array.isArray(payload.simulatorScenarios) ? payload.simulatorScenarios : simulatorScenarios;
+      categoryRules = Array.isArray(payload.categoryRules)
+        ? payload.categoryRules
+            .map((rule) => ({ id: String(rule.id || createId()), match: String(rule.match || "").trim().slice(0, 60), category: String(rule.category || "Other").trim() || "Other" }))
+            .filter((rule) => rule.match)
+        : categoryRules;
       saveBills();
       saveStatementTransactions();
       saveBudgets();
@@ -424,7 +537,9 @@ function importJsonBackup(event) {
       saveAccountSettings();
       saveCategories();
       saveSimulatorScenarios();
+      saveCategoryRules();
       renderCategories();
+      renderCategoryRules();
       renderStatementAccountOptions();
       renderAccountSettings();
       renderStoredStatementState();
