@@ -1728,7 +1728,7 @@ function parseLooseStatementLine(line, sourceOrder = 0) {
   }
 
   const dateMatch = line.match(/\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})\b/);
-  const amountMatches = [...line.matchAll(/[-(]?\s*[£$€₹]?\s*\d[\d,]*\.\d{2}\)?/g)];
+  const amountMatches = [...line.matchAll(/[£$€₹]\s*\d[\d,]*(?:\.\d{1,2})?|[-(]?\s*[£$€₹]?\s*\d[\d,]*\.\d{2}\)?/g)];
   if (!dateMatch || amountMatches.length === 0) {
     return null;
   }
