@@ -64,10 +64,29 @@ window, or any setup step.
 billpocket/
 ├── index.html   # App shell and all UI sections
 ├── styles.css   # Design tokens, light/dark themes, layout
-├── app.js       # All application logic (storage, parsing, charts, analysis)
+├── js/          # Application logic, split into classic (non-module) scripts
+│   ├── constants.js          # Storage keys, default categories/accounts, rules
+│   ├── dom.js                # Cached DOM element references
+│   ├── utils.js              # Generic date / money / text helpers
+│   ├── storage.js            # localStorage load & save helpers
+│   ├── statement-parser.js   # CSV/PDF/DOCX/XLSX/OFX/QIF/loose parsers + reconcile
+│   ├── statement-analysis.js # Scan, subscription detection, upload UI
+│   ├── account.js            # Own-account & transfer detection
+│   ├── transactions.js       # Transaction review (Analyst) table & reports
+│   ├── charts.js             # SVG charts
+│   ├── planning.js           # Budgets, goals, cancellations, health & cashflow
+│   ├── simulator.js          # Life Decisions money simulator
+│   ├── bills.js              # Bills list, dashboard, insights & timeline
+│   ├── ui.js                 # Categories, privacy, reminders, import/export, theme
+│   └── app.js                # Bootstrap: global state, init sequence & event wiring
+├── test/parser.test.js  # Dependency-free Node tests for the parser (node test/parser.test.js)
 ├── Open-BillPocket.bat # Windows launcher
 └── README.md
 ```
+
+> The scripts are plain `<script>` files that share one global scope (no ES
+> modules), so the app still works when opened directly from `file://`. Load
+> order matters — `app.js` runs last. See the comments in `index.html`.
 
 ---
 

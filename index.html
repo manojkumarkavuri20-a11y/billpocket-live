@@ -655,6 +655,22 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260516-simple1"></script>
+    <!-- Modular build. Classic scripts sharing one global scope (no ES modules,
+         so the app keeps working when opened directly via file://). Load order
+         matters: constants/refs/helpers first, app.js (bootstrap + wiring) last. -->
+    <script src="js/constants.js?v=20260621-modular1"></script>
+    <script src="js/dom.js?v=20260621-modular1"></script>
+    <script src="js/utils.js?v=20260621-modular1"></script>
+    <script src="js/storage.js?v=20260621-modular1"></script>
+    <script src="js/statement-parser.js?v=20260621-modular1"></script>
+    <script src="js/statement-analysis.js?v=20260621-modular1"></script>
+    <script src="js/account.js?v=20260621-modular1"></script>
+    <script src="js/transactions.js?v=20260621-modular1"></script>
+    <script src="js/charts.js?v=20260621-modular1"></script>
+    <script src="js/planning.js?v=20260621-modular1"></script>
+    <script src="js/simulator.js?v=20260621-modular1"></script>
+    <script src="js/bills.js?v=20260621-modular1"></script>
+    <script src="js/ui.js?v=20260621-modular1"></script>
+    <script src="js/app.js?v=20260621-modular1"></script>
   </body>
 </html>
