@@ -789,12 +789,18 @@ input[type="range"]:focus { box-shadow: none; }
 
 .transaction-row {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr 0.8fr 0.9fr 1fr auto;
+  grid-template-columns: auto 1.6fr 1fr 1fr 1fr 0.8fr 0.9fr 1fr auto;
   gap: var(--space-2);
   padding: var(--space-3);
   border-bottom: 1px solid var(--border);
   font-size: 13px;
   align-items: center;
+}
+.transaction-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
 }
 .transaction-row:last-child { border-bottom: 0; }
 .transaction-row.is-header {
@@ -1486,6 +1492,99 @@ body[data-theme="dark"][data-accent="teal"]       { --accent: #78b0aa; --accent-
   .calendar-grid { grid-template-columns: repeat(4, 1fr); }
   .app-header-search { flex: 1 1 100%; order: 3; }
 }
+
+/* ─── Saved filters strip ───────────────────────────────── */
+.saved-filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  align-items: center;
+}
+.saved-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+  font-size: 12px;
+  gap: 4px;
+}
+.saved-filter-chip > button:first-child {
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.saved-filter-chip > button:first-child:hover { color: var(--accent); }
+.saved-filter-remove {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1;
+}
+.saved-filter-remove:hover { color: var(--negative); }
+.saved-filter-save { font-size: 12px; padding: 4px 10px; }
+
+/* ─── Bulk-edit bar ──────────────────────────────────────── */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  font-size: 13px;
+}
+.bulk-bar select {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.bulk-bar button { font-size: 13px; padding: 4px 10px; }
+
+/* ─── Transaction tag pills ──────────────────────────────── */
+.tx-tag-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.tag-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid;
+  background: transparent;
+}
+
+/* ─── Bill prediction + price-change lines ──────────────── */
+.bill-prediction {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.bill-price-change {
+  font-size: 12px;
+  margin: 0;
+  font-weight: 500;
+}
+.bill-price-change.warning { color: var(--warning); }
+.bill-price-change.positive { color: var(--positive); }
 
 /* ─── FX rate editor ─────────────────────────────────────── */
 .fx-rate-list {
