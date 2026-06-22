@@ -15,6 +15,12 @@ const SIMULATOR_KEY = "billpocket.simulatorScenarios.v1";
 const CATEGORY_RULES_KEY = "billpocket.categoryRules.v1";
 const ACCENT_KEY = "billpocket.accent.v1";
 const ONBOARDING_KEY = "billpocket.onboarded.v1";
+const FX_KEY = "billpocket.fxRates.v1";
+const TAGS_KEY = "billpocket.tags.v1";
+const SAVED_FILTERS_KEY = "billpocket.savedFilters.v1";
+const PAYMENT_HISTORY_KEY = "billpocket.paymentHistory.v1";
+const LOCK_KEY = "billpocket.lock.v1";
+const LOCKED_BLOB_KEY = "billpocket.locked.v1";
 const defaultCategories = ["Housing", "Utilities", "Entertainment", "Health", "Transport", "Learning", "Other"];
 const defaultOwnAccounts = ["HSBC", "Lloyds", "Revolut", "Monzo"];
 const defaultAccountSettings = {
@@ -63,6 +69,24 @@ const billTemplates = [
   { name: "Rent",          amount: 0,     frequency: "monthly", category: "Housing" },
   { name: "Gym",           amount: 30,    frequency: "monthly", category: "Health" },
   { name: "Council tax",   amount: 0,     frequency: "monthly", category: "Housing" },
+];
+
+// FX rates: 1 unit of the given currency equals N base-currency (GBP) units.
+// Pre-seeded with sensible defaults; users edit them in Tools.
+const defaultFxRates = {
+  GBP: 1,
+  USD: 0.79,
+  EUR: 0.86,
+  CAD: 0.58,
+  AUD: 0.52,
+  INR: 0.0094,
+  JPY: 0.0050,
+};
+const fxBaseCurrency = "GBP";
+const supportedCurrencies = ["GBP", "USD", "EUR", "CAD", "AUD", "INR", "JPY"];
+
+const defaultTagPalette = [
+  "#5a7a5e", "#4a6b8a", "#7d5e75", "#b5894e", "#4a847f", "#9c5e5a", "#6a7c8c",
 ];
 
 const viewIds = ["home", "bills", "upload", "review", "charts", "whatif", "tools"];
