@@ -140,6 +140,173 @@ function renderTransactionReviewFilters() {
   transactionCategoryFilter.value = categoryOptions.includes(currentCategory) ? currentCategory : "all";
 }
 
+function getCurrentReviewFilterConfig() {
+  return {
+    query: transactionSearchInput.value.trim(),
+    month: transactionMonthFilter.value,
+    account: transactionAccountFilter.value,
+    category: transactionCategoryFilter.value,
+    type: transactionTypeFilter.value,
+    sort: transactionSortMode.value,
+  };
+}
+
+function applyReviewFilterConfig(config) {
+  if (!config) return;
+  if (config.query !== undefined) transactionSearchInput.value = config.query;
+  if (config.month) transactionMonthFilter.value = config.month;
+  if (config.account) transactionAccountFilter.value = config.account;
+  if (config.category) transactionCategoryFilter.value = config.category;
+  if (config.type) transactionTypeFilter.value = config.type;
+  if (config.sort) transactionSortMode.value = config.sort;
+  renderTransactionReview();
+}
+
+function saveCurrentReviewFilter() {
+  const name = window.prompt("Name this filter:");
+  if (!name) return;
+  const trimmed = name.trim().slice(0, 40);
+  if (!trimmed) return;
+  savedFilters = [
+    ...savedFilters.filter((f) => f.name.toLowerCase() !== trimmed.toLowerCase()),
+    { id: createId(), name: trimmed, scope: "transactions", config: getCurrentReviewFilterConfig() },
+  ];
+  saveSavedFilters();
+  renderTransactionReview();
+  showToast(`Saved filter "${trimmed}"`);
+}
+
+function handleSavedFilterStripClick(event) {
+  const applyBtn = event.target.closest("button[data-saved-filter]");
+  const removeBtn = event.target.closest("button[data-remove-filter]");
+  if (removeBtn) {
+    savedFilters = savedFilters.filter((f) => f.id !== removeBtn.dataset.removeFilter);
+    saveSavedFilters();
+    renderTransactionReview();
+    return;
+  }
+  if (applyBtn) {
+    const filter = savedFilters.find((f) => f.id === applyBtn.dataset.savedFilter);
+    if (filter) applyReviewFilterConfig(filter.config);
+  }
+}
+
+function renderSavedFilterStrip() {
+  const txFilters = savedFilters.filter((f) => f.scope === "transactions");
+  const saveButton = `<button type="button" class="ghost-button saved-filter-save" data-saved-filter-action="save">+ Save current filter</button>`;
+  if (txFilters.length === 0) {
+    return `<div class="saved-filter-strip">${saveButton}</div>`;
+  }
+  return `<div class="saved-filter-strip">
+    ${txFilters.map((f) => `<span class="saved-filter-chip"><button type="button" data-saved-filter="${escapeHtml(f.id)}">${escapeHtml(f.name)}</button><button type="button" class="saved-filter-remove" data-remove-filter="${escapeHtml(f.id)}" aria-label="Remove ${escapeHtml(f.name)}">×</button></span>`).join("")}
+    ${saveButton}
+  </div>`;
+}
+
+function renderBulkBar() {
+  if (bulkSelection.size === 0) return "";
+  return `<div class="bulk-bar">
+    <span><strong>${bulkSelection.size}</strong> selected</span>
+    <select data-bulk-action="setCategory" aria-label="Set category">
+      <option value="">Change category…</option>
+      ${categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}
+    </select>
+    <select data-bulk-action="setType" aria-label="Set type">
+      <option value="">Change type…</option>
+      <option value="spending">Spending</option>
+      <option value="income">Income</option>
+      <option value="salary">Salary</option>
+      <option value="transfer">Transfer</option>
+      <option value="refund">Refund</option>
+      <option value="ignore">Ignore</option>
+    </select>
+    ${tags.length > 0 ? `<select data-bulk-action="addTag" aria-label="Add tag">
+      <option value="">Add tag…</option>
+      ${tags.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join("")}
+    </select>` : ""}
+    <button type="button" class="ghost-button danger" data-bulk-action="delete">Delete selected</button>
+    <button type="button" class="ghost-button" data-bulk-action="clear">Clear</button>
+  </div>`;
+}
+
+function applyBulkAction(action, value) {
+  const ids = [...bulkSelection];
+  if (ids.length === 0) return;
+  const previousTransactions = statementTransactions;
+
+  if (action === "delete") {
+    if (!window.confirm(`Delete ${ids.length} selected transactions?`)) return;
+    statementTransactions = statementTransactions.filter((t) => !bulkSelection.has(t.id));
+    bulkSelection.clear();
+    saveStatementTransactions();
+    refreshStatementAnalyticsAfterReview();
+    showToast(`Deleted ${ids.length} transactions`, {
+      undo: () => {
+        statementTransactions = previousTransactions;
+        saveStatementTransactions();
+        refreshStatementAnalyticsAfterReview();
+        showToast(`Restored ${ids.length} transactions`);
+      },
+    });
+    return;
+  }
+
+  if (action === "setCategory" && value) {
+    statementTransactions = statementTransactions.map((t) =>
+      bulkSelection.has(t.id) ? { ...t, category: value, reviewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : t
+    );
+  } else if (action === "setType" && value) {
+    statementTransactions = statementTransactions.map((t) => {
+      if (!bulkSelection.has(t.id)) return t;
+      const next = { ...t, reviewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      applyTransactionType(next, value);
+      return next;
+    });
+  } else if (action === "addTag" && value) {
+    statementTransactions = statementTransactions.map((t) => {
+      if (!bulkSelection.has(t.id)) return t;
+      const existing = Array.isArray(t.tags) ? t.tags : [];
+      if (existing.includes(value)) return t;
+      return { ...t, tags: [...existing, value], updatedAt: new Date().toISOString() };
+    });
+  } else {
+    return;
+  }
+
+  saveStatementTransactions();
+  refreshStatementAnalyticsAfterReview();
+  showToast(`Updated ${ids.length} transactions`, {
+    undo: () => {
+      statementTransactions = previousTransactions;
+      saveStatementTransactions();
+      refreshStatementAnalyticsAfterReview();
+      showToast(`Reverted ${ids.length} changes`);
+    },
+  });
+}
+
+function handleBulkBarClick(event) {
+  const button = event.target.closest("button[data-bulk-action]");
+  const select = event.target.closest("select[data-bulk-action]");
+  if (button) {
+    const action = button.dataset.bulkAction;
+    if (action === "clear") {
+      bulkSelection.clear();
+      renderTransactionReview();
+      return;
+    }
+    if (action === "delete") applyBulkAction("delete");
+    return;
+  }
+  if (select) {
+    const action = select.dataset.bulkAction;
+    if (select.value) {
+      applyBulkAction(action, select.value);
+      select.value = "";
+    }
+  }
+}
+
 function renderTransactionReview() {
   if (statementTransactions.length === 0) {
     transactionReviewStatus.textContent = "No saved statement transactions yet.";
@@ -151,12 +318,16 @@ function renderTransactionReview() {
   const excludedCount = statementTransactions.filter(isTransactionExcluded).length;
   transactionReviewStatus.textContent = `Showing ${rows.length} of ${statementTransactions.length} rows. Money In means received. Money Out means spent. ${excludedCount} ignored or treated as own-account transfers.`;
 
+  const filterStrip = renderSavedFilterStrip();
+  const bulkBar = renderBulkBar();
+
   if (rows.length === 0) {
-    transactionReviewList.innerHTML = `<p class="muted">No transactions match these filters.</p>`;
+    transactionReviewList.innerHTML = filterStrip + bulkBar + `<p class="muted">No transactions match these filters.</p>`;
     return;
   }
 
   const header = `<div class="transaction-row is-header" role="row">
+    <div><input type="checkbox" data-bulk-toggle="all" aria-label="Select all visible"></div>
     <div>Transaction</div>
     <div class="transaction-money-header">Money in (received)</div>
     <div class="transaction-money-header">Money out (spent)</div>
@@ -166,7 +337,7 @@ function renderTransactionReview() {
     <div>Type</div>
     <div></div>
   </div>`;
-  transactionReviewList.innerHTML = header + rows
+  transactionReviewList.innerHTML = filterStrip + bulkBar + header + rows
     .slice(0, 80)
     .map(renderTransactionRow)
     .join("");
@@ -239,12 +410,25 @@ function renderTransactionRow(transaction) {
 
   const directionLabel = hasIncome ? "Received into account" : hasSpending ? "Paid out of account" : titleCase(transaction.type || "No amount");
 
+  const checked = bulkSelection.has(transaction.id) ? "checked" : "";
+  const txTags = Array.isArray(transaction.tags) ? transaction.tags : [];
+  const tagPills = txTags.length
+    ? `<span class="tx-tag-pills">${txTags
+        .map((tagId) => {
+          const tag = tags.find((t) => t.id === tagId);
+          return tag ? `<span class="tag-pill" style="color:${escapeHtml(tag.color)}; border-color:${escapeHtml(tag.color)}">${escapeHtml(tag.name)}</span>` : "";
+        })
+        .join("")}</span>`
+    : "";
+
   return `
     <div class="transaction-row ${isTransactionExcluded(transaction) ? "is-excluded" : ""}" data-transaction-id="${escapeHtml(transaction.id)}">
+      <div><input type="checkbox" data-bulk-row="${escapeHtml(transaction.id)}" ${checked} aria-label="Select row"></div>
       <div class="transaction-main">
         <div class="transaction-date">${formatDate(transaction.date)}</div>
         <input class="merchant-input" data-field="merchant" value="${escapeHtml(titleCase(transaction.merchant))}" aria-label="Merchant">
         <p>${escapeHtml(getStatementOrderLabel(transaction))} · ${escapeHtml(directionLabel)} · ${escapeHtml(normalizeAccount(transaction.account))} · ${escapeHtml(transaction.description)}${escapeHtml(balanceCheckLabel)}</p>
+        ${tagPills}
       </div>
       <span class="transaction-money ${moneyInClass}" data-label="Money in received">${moneyInLabel}</span>
       <span class="transaction-money ${moneyOutClass}" data-label="Money out spent">${moneyOutLabel}</span>
@@ -276,6 +460,28 @@ function getStatementOrderLabel(transaction) {
 }
 
 function handleTransactionReviewChange(event) {
+  // Bulk-select checkbox
+  if (event.target.matches("input[type='checkbox'][data-bulk-row]")) {
+    const id = event.target.dataset.bulkRow;
+    if (event.target.checked) bulkSelection.add(id);
+    else bulkSelection.delete(id);
+    renderTransactionReview();
+    return;
+  }
+  // Bulk select-all toggle
+  if (event.target.matches("input[type='checkbox'][data-bulk-toggle='all']")) {
+    const visibleIds = getVisibleStatementTransactions().slice(0, 80).map((t) => t.id);
+    if (event.target.checked) visibleIds.forEach((id) => bulkSelection.add(id));
+    else visibleIds.forEach((id) => bulkSelection.delete(id));
+    renderTransactionReview();
+    return;
+  }
+  // Bulk-bar selects (categories/types/tags)
+  if (event.target.matches("select[data-bulk-action]")) {
+    handleBulkBarClick(event);
+    return;
+  }
+
   const field = event.target.dataset.field;
   const row = event.target.closest("[data-transaction-id]");
   if (!field || !row) {
@@ -345,6 +551,21 @@ function applyTransactionType(transaction, typeValue) {
 }
 
 function handleTransactionReviewAction(event) {
+  // Saved-filter strip clicks
+  if (event.target.closest("[data-saved-filter], [data-remove-filter]")) {
+    handleSavedFilterStripClick(event);
+    return;
+  }
+  if (event.target.closest("[data-saved-filter-action='save']")) {
+    saveCurrentReviewFilter();
+    return;
+  }
+  // Bulk-bar buttons
+  if (event.target.closest("button[data-bulk-action]")) {
+    handleBulkBarClick(event);
+    return;
+  }
+
   const button = event.target.closest("button[data-action='delete-transaction']");
   if (!button) {
     return;

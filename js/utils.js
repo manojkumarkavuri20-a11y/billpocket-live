@@ -176,6 +176,15 @@ function createId() {
 }
 
 function formatTotalsByCurrency(items, mapper) {
+  // If a user has picked a single display currency we convert everything into
+  // it for one clean total; otherwise we fall back to per-currency rendering
+  // (the legacy behaviour for users who never opened the FX panel).
+  const display = typeof displayCurrency === "string" ? displayCurrency : fxBaseCurrency;
+  if (display) {
+    const total = items.reduce((sum, bill) => sum + convertCurrency(mapper(bill), bill.currency || display, display), 0);
+    return formatMoney(total, display);
+  }
+
   const totals = items.reduce((result, bill) => {
     result[bill.currency] = (result[bill.currency] || 0) + mapper(bill);
     return result;
@@ -303,6 +312,31 @@ function formatMoney(amount, currency) {
     currencyDisplay: "code",
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+// Multi-currency conversion. If `displayCurrency` differs from `currency`,
+// the amount is converted via the locally-stored FX rates (1 unit of X = rate
+// units of GBP base). Returns the converted value AND the formatted string,
+// so callers can either use formatMoneyDisplay() for UI or get the raw number.
+function convertCurrency(amount, fromCurrency, toCurrency) {
+  if (!fromCurrency || fromCurrency === toCurrency) return Number(amount) || 0;
+  if (typeof fxRates !== "object" || !fxRates) return Number(amount) || 0;
+  const fromRate = Number(fxRates[fromCurrency]) || 1;
+  const toRate = Number(fxRates[toCurrency]) || 1;
+  if (toRate === 0) return Number(amount) || 0;
+  // amount * fromRate = GBP equivalent; / toRate = target currency
+  return roundMoney((Number(amount) || 0) * fromRate / toRate);
+}
+
+// Format a money value, converting to the user's chosen display currency
+// when set. Mirrors formatMoney's API but funnels everything through one
+// display currency for cross-currency summary screens.
+function formatMoneyDisplay(amount, sourceCurrency) {
+  const display = typeof displayCurrency === "string" ? displayCurrency : fxBaseCurrency;
+  if (!sourceCurrency || sourceCurrency === display) {
+    return formatMoney(amount, display);
+  }
+  return formatMoney(convertCurrency(amount, sourceCurrency, display), display);
 }
 
 function escapeHtml(value) {

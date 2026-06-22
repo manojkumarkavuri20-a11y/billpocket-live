@@ -8,6 +8,57 @@ function renderVisualInsights() {
   renderCategoryDonutChart();
   renderCashflowChart(months);
   renderBudgetChart();
+  renderYearOverYearChart();
+}
+
+// Side-by-side bar chart: this-year vs last-year spending per month for the
+// trailing 6 months. Pure SVG. Renders into #yearOverYearChart if present.
+function renderYearOverYearChart() {
+  const host = document.querySelector("#yearOverYearChart");
+  if (!host) return;
+  const { thisYearByMonth, lastYearByMonth } = getYearOverYearTotals();
+  const keys = Object.keys({ ...thisYearByMonth, ...lastYearByMonth }).sort();
+  if (keys.length === 0) {
+    host.innerHTML = renderChartEmpty("Upload statements covering both this year and last year to compare.");
+    return;
+  }
+  const width = 480;
+  const height = 200;
+  const padding = 40;
+  const maxValue = Math.max(
+    ...keys.map((k) => Math.max(thisYearByMonth[k] || 0, lastYearByMonth[k] || 0)),
+    1
+  );
+  const groupWidth = (width - padding * 2) / keys.length;
+  const barWidth = Math.max(6, groupWidth * 0.35);
+
+  const bars = keys
+    .map((key, i) => {
+      const x = padding + i * groupWidth;
+      const lastY = lastYearByMonth[key] || 0;
+      const thisY = thisYearByMonth[key] || 0;
+      const lastH = (lastY / maxValue) * (height - padding * 2);
+      const thisH = (thisY / maxValue) * (height - padding * 2);
+      const labelMonth = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(2024, Number(key) - 1, 1));
+      return `
+        <rect class="chart-spend" x="${x + groupWidth * 0.15}" y="${height - padding - lastH}" width="${barWidth}" height="${lastH}" opacity="0.45" />
+        <rect class="chart-income" x="${x + groupWidth * 0.5}" y="${height - padding - thisH}" width="${barWidth}" height="${thisH}" />
+        <text x="${x + groupWidth * 0.5}" y="${height - padding + 14}" class="chart-axis-label" text-anchor="middle">${labelMonth}</text>
+      `;
+    })
+    .join("");
+
+  host.innerHTML = `
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Year over year spending">
+      ${renderYAxis(width, height, padding, maxValue)}
+      <line class="chart-axis" x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" />
+      ${bars}
+    </svg>
+    ${renderLegend([
+      { label: "This year", className: "chart-income" },
+      { label: "Last year (same month)", className: "chart-spend" },
+    ])}
+  `;
 }
 
 function renderIncomeSpendChart(months) {

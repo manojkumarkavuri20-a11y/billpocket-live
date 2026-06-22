@@ -229,6 +229,131 @@ function saveOnboardingState() {
   localStorage.setItem(ONBOARDING_KEY, JSON.stringify(onboardingState));
 }
 
+// ─── FX rates ────────────────────────────────────────────────────────────────
+function loadFxRates() {
+  try {
+    const saved = localStorage.getItem(FX_KEY);
+    const parsed = saved ? JSON.parse(saved) : null;
+    const merged = { ...defaultFxRates, ...(parsed && typeof parsed === "object" ? parsed : {}) };
+    merged[fxBaseCurrency] = 1;
+    return merged;
+  } catch {
+    return { ...defaultFxRates };
+  }
+}
+
+function saveFxRates() {
+  const onlyOverrides = Object.fromEntries(
+    Object.entries(fxRates).filter(([code, rate]) => Number(rate) !== defaultFxRates[code])
+  );
+  if (Object.keys(onlyOverrides).length === 0) {
+    localStorage.removeItem(FX_KEY);
+  } else {
+    localStorage.setItem(FX_KEY, JSON.stringify(onlyOverrides));
+  }
+  renderPrivacyReport();
+}
+
+// ─── Tags ────────────────────────────────────────────────────────────────────
+function loadTags() {
+  try {
+    const saved = localStorage.getItem(TAGS_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((t) => t && typeof t === "object" && typeof t.name === "string")
+          .map((t) => ({
+            id: String(t.id || createId()),
+            name: String(t.name).trim().slice(0, 30),
+            color: typeof t.color === "string" ? t.color : defaultTagPalette[0],
+          }))
+          .filter((t) => t.name)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTags() {
+  if (!Array.isArray(tags) || tags.length === 0) {
+    localStorage.removeItem(TAGS_KEY);
+  } else {
+    localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+  }
+  renderPrivacyReport();
+}
+
+// ─── Saved filters ───────────────────────────────────────────────────────────
+function loadSavedFilters() {
+  try {
+    const saved = localStorage.getItem(SAVED_FILTERS_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((f) => f && typeof f === "object" && typeof f.name === "string" && f.config)
+          .map((f) => ({
+            id: String(f.id || createId()),
+            name: String(f.name).trim().slice(0, 40),
+            scope: f.scope === "bills" ? "bills" : "transactions",
+            config: f.config && typeof f.config === "object" ? f.config : {},
+          }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSavedFilters() {
+  if (!Array.isArray(savedFilters) || savedFilters.length === 0) {
+    localStorage.removeItem(SAVED_FILTERS_KEY);
+  } else {
+    localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(savedFilters));
+  }
+  renderPrivacyReport();
+}
+
+// ─── Bill payment history ────────────────────────────────────────────────────
+function loadPaymentHistory() {
+  try {
+    const saved = localStorage.getItem(PAYMENT_HISTORY_KEY);
+    const parsed = saved ? JSON.parse(saved) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePaymentHistory() {
+  const trimmed = {};
+  for (const [billId, entries] of Object.entries(paymentHistory)) {
+    if (Array.isArray(entries) && entries.length > 0) trimmed[billId] = entries.slice(-24);
+  }
+  if (Object.keys(trimmed).length === 0) {
+    localStorage.removeItem(PAYMENT_HISTORY_KEY);
+  } else {
+    localStorage.setItem(PAYMENT_HISTORY_KEY, JSON.stringify(trimmed));
+  }
+  renderPrivacyReport();
+}
+
+// ─── Lock state (passphrase + WebCrypto AES-GCM encryption) ─────────────────
+function loadLockState() {
+  try {
+    const saved = localStorage.getItem(LOCK_KEY);
+    return saved ? JSON.parse(saved) : { enabled: false };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+function saveLockState() {
+  if (!lockState || !lockState.enabled) {
+    localStorage.removeItem(LOCK_KEY);
+  } else {
+    localStorage.setItem(LOCK_KEY, JSON.stringify(lockState));
+  }
+}
+
 function loadReminderSettings() {
   try {
     const saved = localStorage.getItem(REMINDER_KEY);

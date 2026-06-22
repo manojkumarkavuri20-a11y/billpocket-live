@@ -237,6 +237,11 @@
             <h3>Budget progress</h3>
             <div id="budgetChart" class="chart-shell"></div>
           </article>
+          <article class="chart-card wide-chart">
+            <h3>Year over year</h3>
+            <small class="muted">Spending this year vs the same month last year.</small>
+            <div id="yearOverYearChart" class="chart-shell"></div>
+          </article>
         </div>
       </section>
 
@@ -637,6 +642,56 @@
           </form>
           <p id="categoryRuleStatus" class="muted" aria-live="polite"></p>
           <div id="categoryRuleList" class="tag-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="fxTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Multi-currency</p>
+              <h2 id="fxTitle">Exchange rates</h2>
+            </div>
+          </div>
+          <p class="muted">Display every total in one currency. Edit the rates manually — they stay on this device.</p>
+          <label>
+            Display everything in
+            <select id="displayCurrencySelect" aria-label="Display currency"></select>
+          </label>
+          <div id="fxRateList" class="fx-rate-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="tagsTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Labels</p>
+              <h2 id="tagsTitle">Tags</h2>
+            </div>
+          </div>
+          <p class="muted">Free-form labels that work across categories — try "work", "tax", "vacation".</p>
+          <form id="tagForm" class="inline-form" autocomplete="off">
+            <label>
+              New tag
+              <input id="newTagInput" maxlength="30" placeholder="work, tax-deductible">
+            </label>
+            <button class="primary-button" type="submit">Add tag</button>
+          </form>
+          <div id="tagList" class="tag-list" aria-live="polite"></div>
+        </article>
+
+        <article class="panel tool-panel" aria-labelledby="securityTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Security</p>
+              <h2 id="securityTitle">Lock & share</h2>
+            </div>
+          </div>
+          <p class="muted">Encrypt your local data with a passphrase, or copy an encrypted snapshot to share.</p>
+          <div class="security-actions">
+            <button class="primary-button" id="lockToggleButton" type="button">Enable passphrase lock</button>
+            <button class="ghost-button" id="shareSnapshotButton" type="button">Share encrypted snapshot</button>
+            <button class="ghost-button" id="importSnapshotButton" type="button">Import shared snapshot</button>
+            <button class="ghost-button" id="exportIcsButton" type="button">Export bill calendar (.ics)</button>
+          </div>
+          <p id="securityStatus" class="muted" aria-live="polite"></p>
         </article>
 
         <article class="panel tool-panel" aria-labelledby="reminderTitle">

@@ -9,6 +9,13 @@ let activeAccent = loadAccentPreference();
 let onboardingState = loadOnboardingState();
 let activeView = "home";
 let undoSnapshot = null;
+let fxRates = loadFxRates();
+let displayCurrency = fxBaseCurrency;
+let tags = loadTags();
+let savedFilters = loadSavedFilters();
+let paymentHistory = loadPaymentHistory();
+let lockState = loadLockState();
+let bulkSelection = new Set();
 let simulatorScenarios = loadSimulatorScenarios();
 let currentSimResult = null;
 let accountSettings = loadAccountSettings();
@@ -23,26 +30,39 @@ let savingsGoals = loadSavingsGoals();
 let cancelPlans = loadCancelPlans();
 let latestImportReport = null;
 
-applyTheme(loadTheme(), Boolean(localStorage.getItem(THEME_KEY)));
-applyAccent(activeAccent);
-renderAccentPicker();
-renderBillTemplates();
-renderCategories();
-renderCategoryRules();
-renderStatementAccountOptions();
-renderAccountSettings();
-applyReminderSettings();
-initSectionNavigation();
-renderStoredStatementState();
-renderPlanning();
-renderVisualInsights();
-renderAnalystCenter();
-renderSimulator();
-renderPrivacyReport();
-setDefaultDueDate();
-render();
-renderOnboarding();
-setActiveView(readActiveViewFromHash(), { skipPush: true });
+(async function bootApp() {
+  // If passphrase lock is on, the rest of the bootstrap is gated on a
+  // successful decrypt. maybeUnlockOnBoot mutates the state vars in place
+  // via applySnapshotToState; falsy return means the user aborted/failed
+  // and we should NOT render anything further.
+  const unlocked = await maybeUnlockOnBoot();
+  if (!unlocked) return;
+
+  applyTheme(loadTheme(), Boolean(localStorage.getItem(THEME_KEY)));
+  applyAccent(activeAccent);
+  renderAccentPicker();
+  renderBillTemplates();
+  renderCategories();
+  renderCategoryRules();
+  renderDisplayCurrencySelect();
+  renderFxRateList();
+  renderTagsPanel();
+  updateLockUi();
+  renderStatementAccountOptions();
+  renderAccountSettings();
+  applyReminderSettings();
+  initSectionNavigation();
+  renderStoredStatementState();
+  renderPlanning();
+  renderVisualInsights();
+  renderAnalystCenter();
+  renderSimulator();
+  renderPrivacyReport();
+  setDefaultDueDate();
+  render();
+  renderOnboarding();
+  setActiveView(readActiveViewFromHash(), { skipPush: true });
+})();
 
 // PWA install (HTTP only — skip silently on file:// where SW is unsupported)
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
@@ -151,6 +171,12 @@ if (globalSearchInput) {
 if (globalSearchResults) globalSearchResults.addEventListener("click", handleGlobalSearchResultClick);
 if (billTemplatesRow) billTemplatesRow.addEventListener("click", handleBillTemplateClick);
 if (onboardingCard) onboardingCard.addEventListener("click", handleOnboardingClick);
+if (tagForm) tagForm.addEventListener("submit", addTagFromForm);
+if (tagList) tagList.addEventListener("click", handleTagListClick);
+if (lockToggleButton) lockToggleButton.addEventListener("click", toggleLock);
+if (shareSnapshotButton) shareSnapshotButton.addEventListener("click", shareEncryptedSnapshot);
+if (importSnapshotButton) importSnapshotButton.addEventListener("click", importEncryptedSnapshot);
+if (exportIcsButton) exportIcsButton.addEventListener("click", exportBillsAsIcs);
 reminderDaysInput.addEventListener("change", saveReminderSettings);
 reminderModeInput.addEventListener("change", saveReminderSettings);
 notificationButton.addEventListener("click", requestNotificationAccess);

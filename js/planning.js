@@ -195,7 +195,31 @@ function renderCashflowForecast() {
     return;
   }
 
-  const events = forecast.events.slice(0, 7).map((event) => `
+  // Extended horizons: 3 / 6 / 12 months. Each horizon shows the projected
+  // position and a confidence band (±1 stdev of the historical monthly net).
+  const variability = getHistoricalMonthlyVariability();
+  const horizons = [
+    { label: "3 months", months: 3 },
+    { label: "6 months", months: 6 },
+    { label: "12 months", months: 12 },
+  ].map((h) => {
+    const projection = getCashflowForecast(h.months * 30).projected;
+    const band = variability.stdev * Math.sqrt(h.months);
+    return { ...h, projection, low: projection - band, high: projection + band };
+  });
+
+  const horizonTiles = horizons
+    .map(
+      (h) => `
+    <div class="forecast-horizon ${h.projection >= 0 ? "positive" : "negative"}">
+      <span class="muted">${escapeHtml(h.label)}</span>
+      <strong>${formatMoney(h.projection, "GBP")}</strong>
+      ${variability.samples >= 2 ? `<small class="muted">${formatMoney(h.low, "GBP")} … ${formatMoney(h.high, "GBP")}</small>` : ""}
+    </div>`
+    )
+    .join("");
+
+  const events = forecast.events.slice(0, 5).map((event) => `
     <div class="analysis-item">
       <div>
         <h4>${escapeHtml(event.name)} <span>${formatDate(event.date)}</span></h4>
@@ -209,8 +233,54 @@ function renderCashflowForecast() {
       <span>Projected 30-day position</span>
       <strong>${formatMoney(forecast.projected, "GBP")}</strong>
     </div>
+    <div class="forecast-horizons">${horizonTiles}</div>
     ${events.length ? events.join("") : `<p class="muted">No bill or income events found for the next 30 days.</p>`}
   `;
+}
+
+// Standard deviation of the last 6 months of net cashflow (income − spend).
+// Used to draw confidence bands around longer-horizon forecasts.
+function getHistoricalMonthlyVariability() {
+  const today = startOfDay(new Date());
+  const buckets = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    const monthsBack = (today.getFullYear() - txDate.getFullYear()) * 12 + (today.getMonth() - txDate.getMonth());
+    if (monthsBack < 0 || monthsBack > 5) return;
+    const key = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, "0")}`;
+    if (!buckets[key]) buckets[key] = { income: 0, spend: 0 };
+    buckets[key].income += Number(tx.income) || 0;
+    buckets[key].spend += Number(tx.spending) || 0;
+  });
+  const nets = Object.values(buckets).map((b) => b.income - b.spend);
+  if (nets.length < 2) return { samples: nets.length, mean: 0, stdev: 0 };
+  const mean = nets.reduce((a, b) => a + b, 0) / nets.length;
+  const variance = nets.reduce((s, n) => s + (n - mean) ** 2, 0) / nets.length;
+  return { samples: nets.length, mean: roundMoney(mean), stdev: Math.sqrt(variance) };
+}
+
+// Year-over-year category totals: returns this-year and last-year aggregates
+// for the trailing 12 months, suitable for a side-by-side bar chart.
+function getYearOverYearTotals() {
+  const today = startOfDay(new Date());
+  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+  const twelveMonthsAgoSameWindow = new Date(today.getFullYear() - 1, today.getMonth() - 5, 1);
+  const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth() + 1, 0);
+
+  const thisYearByMonth = {};
+  const lastYearByMonth = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (!tx.spending || isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    const key = String(txDate.getMonth() + 1).padStart(2, "0");
+    if (txDate >= sixMonthsAgo && txDate <= today) {
+      thisYearByMonth[key] = (thisYearByMonth[key] || 0) + tx.spending;
+    } else if (txDate >= twelveMonthsAgoSameWindow && txDate <= oneYearAgo) {
+      lastYearByMonth[key] = (lastYearByMonth[key] || 0) + tx.spending;
+    }
+  });
+  return { thisYearByMonth, lastYearByMonth };
 }
 
 function getCashflowForecast(days) {
@@ -387,7 +457,80 @@ function getSmartRecommendations() {
     });
   }
 
-  return recommendations.slice(0, 7);
+  // Anomaly detection: this-month category spend vs the prior 90-day mean.
+  const anomalies = detectSpendingAnomalies();
+  anomalies.slice(0, 2).forEach((item) => {
+    recommendations.push({
+      title: `Watch ${item.category}`,
+      body: `${formatMoney(item.thisMonth, "GBP")} spent this month vs ${formatMoney(item.baseline, "GBP")} typical — ${item.pctOver > 0 ? "up" : "down"} ${Math.abs(Math.round(item.pctOver))}%.`,
+    });
+  });
+
+  // Bill price-change history: surface the most recent shift across all bills.
+  const billChanges = detectBillPriceChanges();
+  if (billChanges.length > 0) {
+    const top = billChanges[0];
+    recommendations.push({
+      title: `${top.bill.name} ${top.delta > 0 ? "went up" : "dropped"}`,
+      body: `Last two payments: ${formatMoney(top.previous, "GBP")} → ${formatMoney(top.current, "GBP")} (${top.delta > 0 ? "+" : ""}${Math.round(top.pct)}%).`,
+    });
+  }
+
+  return recommendations.slice(0, 8);
+}
+
+// Compare each category's current-month spend to the mean of the prior 90
+// days; flag anything > 1.5 standard deviations above (or below) baseline.
+function detectSpendingAnomalies() {
+  const today = startOfDay(new Date());
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const periodStart = new Date(today.getTime() - 90 * 86400000);
+
+  const baselineByCategory = {};
+  const thisMonthByCategory = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (!tx.spending || isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    if (txDate >= periodStart && txDate < monthStart) {
+      baselineByCategory[tx.category] = (baselineByCategory[tx.category] || []);
+      baselineByCategory[tx.category].push(tx.spending);
+    }
+    if (txDate >= monthStart && txDate <= today) {
+      thisMonthByCategory[tx.category] = (thisMonthByCategory[tx.category] || 0) + tx.spending;
+    }
+  });
+
+  const anomalies = [];
+  for (const [category, thisMonth] of Object.entries(thisMonthByCategory)) {
+    const samples = baselineByCategory[category];
+    if (!samples || samples.length < 3) continue;
+    // Project the prior 90-day spend to a monthly baseline.
+    const baseline = (samples.reduce((a, b) => a + b, 0) / 3);
+    if (baseline < 10) continue;
+    const pctOver = ((thisMonth - baseline) / baseline) * 100;
+    if (Math.abs(pctOver) >= 30) {
+      anomalies.push({ category, thisMonth: roundMoney(thisMonth), baseline: roundMoney(baseline), pctOver });
+    }
+  }
+  return anomalies.sort((a, b) => Math.abs(b.pctOver) - Math.abs(a.pctOver));
+}
+
+// Scan paymentHistory for bills whose last two recorded payments differ by
+// 5% or more. Returns the largest change first.
+function detectBillPriceChanges() {
+  const out = [];
+  bills.forEach((bill) => {
+    const history = Array.isArray(paymentHistory[bill.id]) ? paymentHistory[bill.id] : [];
+    if (history.length < 2) return;
+    const last = history[history.length - 1];
+    const prev = history[history.length - 2];
+    const delta = last.amount - prev.amount;
+    const pct = (delta / Math.max(prev.amount, 0.01)) * 100;
+    if (Math.abs(pct) >= 5) {
+      out.push({ bill, previous: prev.amount, current: last.amount, delta, pct });
+    }
+  });
+  return out.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
 }
 
 function renderRecommendationItem(item) {

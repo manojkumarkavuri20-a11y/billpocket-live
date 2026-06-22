@@ -72,6 +72,66 @@ function getAnalyzedTransactions() {
   return statementTransactions.filter((transaction) => !isTransactionExcluded(transaction) && transaction.date && (transaction.spending > 0 || transaction.income > 0));
 }
 
+// Match imported transactions to active bills (merchant similarity, amount
+// within 15%, date within +/- 7 days of nextDueDate). When a match is found,
+// append the actual paid amount to paymentHistory[billId] and advance the
+// bill's nextDueDate. Returns { confirmed, priceChanges } so the upload UI
+// can surface a toast and recommendations.
+function autoConfirmBillPayments(candidateTransactions) {
+  const confirmed = [];
+  const priceChanges = [];
+  if (!Array.isArray(candidateTransactions) || candidateTransactions.length === 0) {
+    return { confirmed, priceChanges };
+  }
+
+  const usedTxKeys = new Set();
+  bills.forEach((bill, idx) => {
+    if (bill.status !== "active" || !bill.nextDueDate || !bill.amount) return;
+    const due = parseLocalDate(bill.nextDueDate).getTime();
+    const billMerchantKey = normalizeMerchantCleanupKey(bill.name);
+    if (!billMerchantKey) return;
+
+    const match = candidateTransactions.find((tx) => {
+      if (!tx || usedTxKeys.has(tx.key)) return false;
+      if (!(tx.spending > 0)) return false;
+      const txMerchantKey = normalizeMerchantCleanupKey(tx.merchant || tx.description);
+      if (!txMerchantKey) return false;
+      const sharesWord = billMerchantKey.split(" ").some((w) => w.length >= 3 && txMerchantKey.includes(w));
+      if (!sharesWord) return false;
+      const amountRatio = Math.abs(tx.spending - bill.amount) / Math.max(bill.amount, 0.01);
+      if (amountRatio > 0.15) return false;
+      const txDate = parseLocalDate(tx.date).getTime();
+      const daysDiff = Math.abs((txDate - due) / 86400000);
+      return daysDiff <= 7;
+    });
+    if (!match) return;
+
+    usedTxKeys.add(match.key);
+    const history = Array.isArray(paymentHistory[bill.id]) ? paymentHistory[bill.id] : [];
+    const previous = history.length > 0 ? history[history.length - 1] : null;
+    const entry = { date: match.date, amount: roundMoney(match.spending), transactionKey: match.key };
+    paymentHistory[bill.id] = [...history, entry];
+
+    if (previous && Math.abs(entry.amount - previous.amount) / Math.max(previous.amount, 0.01) > 0.05) {
+      priceChanges.push({ bill: { ...bill }, previous: previous.amount, current: entry.amount });
+    }
+
+    const advanced = getNextDueDate(bill.nextDueDate, bill.frequency);
+    bills[idx] = {
+      ...bill,
+      nextDueDate: advanced,
+      updatedAt: new Date().toISOString(),
+    };
+    confirmed.push({ ...bills[idx], paidAmount: entry.amount, paidDate: entry.date });
+  });
+
+  if (confirmed.length > 0) {
+    saveBills();
+    savePaymentHistory();
+  }
+  return { confirmed, priceChanges };
+}
+
 function chooseBetterStatementTransaction(existing, incoming) {
   const merged = { ...existing };
   let changed = false;
@@ -218,9 +278,28 @@ function renderStatementTransactions(transactions, sourceLabels, skippedLabels) 
   const sourceText = sourceLabels.length === 1 ? sourceLabels[0] : `${sourceLabels.length} files`;
   const skippedText = skippedLabels.length ? ` Skipped ${skippedLabels.length}: ${skippedLabels.slice(0, 2).join("; ")}${skippedLabels.length > 2 ? "..." : ""}` : "";
   const balanceText = formatBalanceCheckSummary(getBalanceCheckSummary(transactions));
-  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}. Next: open Review and confirm Money In, Money Out, and Balance.${balanceText}${skippedText}`;
+  // Try to auto-match the newly-imported rows to active bills.
+  const confirm = autoConfirmBillPayments(statementTransactions);
+  let confirmText = "";
+  if (confirm.confirmed.length > 0) {
+    confirmText = ` Auto-confirmed ${confirm.confirmed.length} bill${confirm.confirmed.length === 1 ? "" : "s"}.`;
+    render();
+  }
+
+  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}.${confirmText} Next: open Review and confirm Money In, Money Out, and Balance.${balanceText}${skippedText}`;
   markOnboardingStep("hasStatement");
-  showToast(`Imported ${mergeResult.added} new transactions`);
+  if (confirm.priceChanges.length > 0) {
+    const sample = confirm.priceChanges[0];
+    const delta = sample.current - sample.previous;
+    showToast(
+      `${sample.bill.name} ${delta > 0 ? "increased" : "decreased"} from ${formatMoney(sample.previous, "GBP")} to ${formatMoney(sample.current, "GBP")}`,
+      { duration: 9000 }
+    );
+  } else if (confirm.confirmed.length > 0) {
+    showToast(`Imported ${mergeResult.added} new · auto-confirmed ${confirm.confirmed.length} bill${confirm.confirmed.length === 1 ? "" : "s"}`);
+  } else {
+    showToast(`Imported ${mergeResult.added} new transactions`);
+  }
 }
 
 async function extractStatementTextFromFile(file) {

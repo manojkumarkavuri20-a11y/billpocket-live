@@ -34,6 +34,19 @@ function render() {
   checkReminders(false);
 }
 
+function getBillPrediction(billId) {
+  const history = Array.isArray(paymentHistory[billId]) ? paymentHistory[billId] : [];
+  if (history.length < 3) return null;
+  const recent = history.slice(-6);
+  const amounts = recent.map((entry) => Number(entry.amount) || 0);
+  const mean = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+  const variance = amounts.reduce((sum, a) => sum + (a - mean) ** 2, 0) / amounts.length;
+  const stdev = Math.sqrt(variance);
+  // Only call it "variable" if the spread is meaningful (>3% of the mean).
+  if (mean > 0 && stdev / mean < 0.03) return null;
+  return { mean: roundMoney(mean), stdev: roundMoney(stdev), samples: recent.length };
+}
+
 function renderBillCard(bill) {
   const days = daysUntil(bill.nextDueDate);
   const dueBadge = getDueBadge(days, bill.status);
@@ -41,6 +54,27 @@ function renderBillCard(bill) {
   const cancelLabel = bill.status === "cancelled" ? "Restore" : "Cancel";
   const actionDisabled = bill.status !== "active" ? "disabled" : "";
   const note = bill.note ? `<p class="bill-note">${escapeHtml(bill.note)}</p>` : "";
+
+  // Variable-bill prediction from payment history (3+ samples).
+  const prediction = getBillPrediction(bill.id);
+  const predictionLine = prediction
+    ? `<p class="bill-prediction">Next likely ${formatMoneyDisplay(prediction.mean, bill.currency)} (±${formatMoneyDisplay(prediction.stdev, bill.currency)}) · ${prediction.samples} payments</p>`
+    : "";
+
+  // Recent price change from payment history.
+  const history = Array.isArray(paymentHistory[bill.id]) ? paymentHistory[bill.id] : [];
+  let priceChangeLine = "";
+  if (history.length >= 2) {
+    const last = history[history.length - 1];
+    const prev = history[history.length - 2];
+    const diff = last.amount - prev.amount;
+    const pct = (diff / Math.max(prev.amount, 0.01)) * 100;
+    if (Math.abs(pct) >= 5) {
+      const arrow = diff > 0 ? "↑" : "↓";
+      const tone = diff > 0 ? "warning" : "positive";
+      priceChangeLine = `<p class="bill-price-change ${tone}">${arrow} ${formatMoney(prev.amount, bill.currency || "GBP")} → ${formatMoney(last.amount, bill.currency || "GBP")} (${pct > 0 ? "+" : ""}${pct.toFixed(0)}%)</p>`;
+    }
+  }
 
   return `
     <article class="bill-card">
@@ -51,11 +85,13 @@ function renderBillCard(bill) {
           ${dueBadge}
         </div>
         <div class="bill-meta">
-          <span>${formatMoney(bill.amount, bill.currency)}</span>
+          <span>${formatMoneyDisplay(bill.amount, bill.currency)}</span>
           <span>${escapeHtml(bill.category)}</span>
           <span>${frequencyLabels[bill.frequency]}</span>
           <span>Due ${formatDate(bill.nextDueDate)}</span>
         </div>
+        ${priceChangeLine}
+        ${predictionLine}
         ${note}
       </div>
       <div class="bill-actions">
