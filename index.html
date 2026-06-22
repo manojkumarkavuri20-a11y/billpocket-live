@@ -5,12 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="BillPocket — local-only bill tracker and spending analyser for subscriptions, recurring bills, budgets, and bank statement review. No account, no server, no cloud.">
     <meta name="theme-color" content="#1c1c1a">
+    <meta name="color-scheme" content="light dark">
+    <meta name="application-name" content="BillPocket">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BillPocket">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta property="og:title" content="BillPocket">
     <meta property="og:description" content="Track every bill. Zero cloud. Zero cost. A fully local bill tracker and spending analyser.">
     <meta property="og:type" content="website">
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="manifest" href="manifest.webmanifest">
     <title>BillPocket — Local Bill Tracker</title>
-    <link rel="stylesheet" href="styles.css?v=20260622-slate1">
+    <link rel="stylesheet" href="styles.css?v=20260623-windows1">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to app</a>
@@ -27,6 +35,7 @@
       <div class="header-actions">
         <div id="accentPicker" class="accent-picker" aria-label="Choose accent colour"></div>
         <button class="ghost-button theme-button" id="themeToggle" type="button">Dark mode</button>
+        <button class="primary-button install-button" id="installButton" type="button" hidden>Install app</button>
         <div class="privacy-chip">Your data stays on this device.</div>
       </div>
     </header>
@@ -749,19 +758,19 @@
     <!-- Modular build. Classic scripts sharing one global scope (no ES modules,
          so the app keeps working when opened directly via file://). Load order
          matters: constants/refs/helpers first, app.js (bootstrap + wiring) last. -->
-    <script src="js/constants.js?v=20260622-slate1"></script>
-    <script src="js/dom.js?v=20260622-slate1"></script>
-    <script src="js/utils.js?v=20260622-slate1"></script>
-    <script src="js/storage.js?v=20260622-slate1"></script>
-    <script src="js/statement-parser.js?v=20260622-slate1"></script>
-    <script src="js/statement-analysis.js?v=20260622-slate1"></script>
-    <script src="js/account.js?v=20260622-slate1"></script>
-    <script src="js/transactions.js?v=20260622-slate1"></script>
-    <script src="js/charts.js?v=20260622-slate1"></script>
-    <script src="js/planning.js?v=20260622-slate1"></script>
-    <script src="js/simulator.js?v=20260622-slate1"></script>
-    <script src="js/bills.js?v=20260622-slate1"></script>
-    <script src="js/ui.js?v=20260622-slate1"></script>
-    <script src="js/app.js?v=20260622-slate1"></script>
+    <script src="js/constants.js?v=20260623-windows1"></script>
+    <script src="js/dom.js?v=20260623-windows1"></script>
+    <script src="js/utils.js?v=20260623-windows1"></script>
+    <script src="js/storage.js?v=20260623-windows1"></script>
+    <script src="js/statement-parser.js?v=20260623-windows1"></script>
+    <script src="js/statement-analysis.js?v=20260623-windows1"></script>
+    <script src="js/account.js?v=20260623-windows1"></script>
+    <script src="js/transactions.js?v=20260623-windows1"></script>
+    <script src="js/charts.js?v=20260623-windows1"></script>
+    <script src="js/planning.js?v=20260623-windows1"></script>
+    <script src="js/simulator.js?v=20260623-windows1"></script>
+    <script src="js/bills.js?v=20260623-windows1"></script>
+    <script src="js/ui.js?v=20260623-windows1"></script>
+    <script src="js/app.js?v=20260623-windows1"></script>
   </body>
 </html>

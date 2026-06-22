@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BillPocket",
+  "version": "1.0.0",
+  "identifier": "com.billpocket.app",
+  "build": {
+    "frontendDist": "../",
+    "devUrl": "http://localhost:8000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BillPocket",
+        "label": "main",
+        "width": 1280,
+        "height": 900,
+        "minWidth": 480,
+        "minHeight": 600,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "fileDropEnabled": true,
+        "url": "index.html"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "category": "Finance",
+    "shortDescription": "Local bill tracker",
+    "longDescription": "Privacy-first bill tracker and spending analyser. Zero cloud, zero account, your data stays on this device.",
+    "copyright": "Copyright © 2026 BillPocket",
+    "publisher": "BillPocket",
+    "homepage": "https://manojkumarkavuri20-a11y.github.io/billpocket-live/",
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perUser",
+        "displayLanguageSelector": false,
+        "languages": ["English"]
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  }
+}

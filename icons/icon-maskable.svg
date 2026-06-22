@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="BillPocket maskable">
+  <!-- Full-bleed background so Android adaptive icons can crop freely -->
+  <rect width="192" height="192" fill="#cc785c"/>
+  <!-- 80% safe area: keep content within radius 76 from centre -->
+  <rect x="62" y="58" width="68" height="76" rx="7" fill="white" opacity="0.97"/>
+  <rect x="64" y="46" width="64" height="5" rx="2.5" fill="white" opacity="0.6"/>
+  <rect x="64" y="36" width="64" height="3" rx="1.5" fill="white" opacity="0.4"/>
+  <rect x="73" y="75" width="46" height="4" rx="2" fill="#cc785c"/>
+  <rect x="73" y="89" width="46" height="4" rx="2" fill="#cc785c" opacity="0.8"/>
+  <rect x="73" y="103" width="32" height="4" rx="2" fill="#cc785c" opacity="0.6"/>
+  <circle cx="114" cy="120" r="5" fill="#cc785c"/>
+</svg>

@@ -3,23 +3,76 @@
   "short_name": "BillPocket",
   "description": "Local-only bill tracker and spending analyser. No account, no server, no cloud.",
   "start_url": "./index.html",
+  "id": "billpocket",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#f5f5f4",
   "theme_color": "#1c1c1a",
   "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23cc785c'/><text x='96' y='128' font-family='Iowan Old Style,Palatino,Georgia,serif' font-size='112' font-weight='500' fill='white' text-anchor='middle'>B</text></svg>",
-      "sizes": "192x192",
+      "src": "icons/icon.svg",
+      "sizes": "192x192 512x512 1024x1024",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='86' fill='%23cc785c'/><text x='256' y='344' font-family='Iowan Old Style,Palatino,Georgia,serif' font-size='300' font-weight='500' fill='white' text-anchor='middle'>B</text></svg>",
-      "sizes": "512x512",
+      "src": "icons/icon-maskable.svg",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Add a bill",
+      "short_name": "Add bill",
+      "description": "Jump straight to the Add Bill form.",
+      "url": "./index.html#bills",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Upload a statement",
+      "short_name": "Upload",
+      "description": "Open the statement upload view.",
+      "url": "./index.html#upload",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Review transactions",
+      "short_name": "Review",
+      "description": "Open the transaction review table.",
+      "url": "./index.html#review",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./index.html#upload",
+      "accept": {
+        "text/csv": [".csv"],
+        "text/tab-separated-values": [".tsv"],
+        "text/plain": [".txt"],
+        "application/x-ofx": [".ofx"],
+        "application/x-qif": [".qif"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "./index.html#upload",
+    "method": "GET",
+    "params": {
+      "text": "shared_text",
+      "title": "shared_title"
+    }
+  },
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
+  "handle_links": "preferred",
+  "prefer_related_applications": false
 }

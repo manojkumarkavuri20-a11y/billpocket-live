@@ -148,3 +148,4 @@ const shareSnapshotButton = document.querySelector("#shareSnapshotButton");
 const importSnapshotButton = document.querySelector("#importSnapshotButton");
 const exportIcsButton = document.querySelector("#exportIcsButton");
 const securityStatus = document.querySelector("#securityStatus");
+const installButton = document.querySelector("#installButton");
