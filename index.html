@@ -4,22 +4,28 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="BillPocket — local-only bill tracker and spending analyser for subscriptions, recurring bills, budgets, and bank statement review. No account, no server, no cloud.">
-    <meta name="theme-color" content="#0f8b8d">
+    <meta name="theme-color" content="#1c1c1a">
     <meta property="og:title" content="BillPocket">
     <meta property="og:description" content="Track every bill. Zero cloud. Zero cost. A fully local bill tracker and spending analyser.">
     <meta property="og:type" content="website">
+    <link rel="manifest" href="manifest.webmanifest">
     <title>BillPocket — Local Bill Tracker</title>
-    <link rel="stylesheet" href="styles.css?v=20260622-claude1">
+    <link rel="stylesheet" href="styles.css?v=20260622-slate1">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to app</a>
 
     <header class="app-header">
-      <div>
+      <div class="app-header-brand">
         <p class="eyebrow">Local bill tracker</p>
         <h1>BillPocket</h1>
       </div>
+      <div class="app-header-search">
+        <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Search bills, transactions, categories — press /" aria-label="Search everywhere">
+        <div id="globalSearchResults" class="search-results" hidden></div>
+      </div>
       <div class="header-actions">
+        <div id="accentPicker" class="accent-picker" aria-label="Choose accent colour"></div>
         <button class="ghost-button theme-button" id="themeToggle" type="button">Dark mode</button>
         <div class="privacy-chip">Your data stays on this device.</div>
       </div>
@@ -27,18 +33,20 @@
 
     <nav class="app-nav" aria-label="App sections">
       <div class="app-nav-scroll">
-        <a class="active" href="#dashboardSection">Home</a>
-        <a href="#billsSection">Bills</a>
-        <a href="#statementsSection">Upload statement</a>
-        <a href="#analystSection">Check rows</a>
-        <a href="#chartsSection">Charts</a>
-        <a href="#simulatorSection">Plan</a>
-        <a href="#toolsSection">Tools</a>
+        <a class="active" href="#home"   data-view="home">Home</a>
+        <a href="#bills"  data-view="bills">Bills</a>
+        <a href="#upload" data-view="upload">Upload statement</a>
+        <a href="#review" data-view="review">Review</a>
+        <a href="#charts" data-view="charts">Charts</a>
+        <a href="#whatif" data-view="whatif">What if</a>
+        <a href="#tools"  data-view="tools">Tools</a>
       </div>
     </nav>
 
     <main class="app-shell" id="mainContent">
-      <section class="summary-grid" id="dashboardSection" aria-label="Bill summary">
+      <div id="toastHost" class="toast-host" aria-live="polite"></div>
+      <article id="onboardingCard" class="panel onboarding-card" data-view="home" hidden></article>
+      <section class="summary-grid" id="dashboardSection" data-view="home" aria-label="Bill summary">
         <article class="metric">
           <span class="metric-label">Monthly total</span>
           <strong id="monthlyTotal">GBP 0.00</strong>
@@ -57,42 +65,44 @@
         </article>
       </section>
 
-      <section class="quick-start panel" aria-labelledby="quickStartTitle">
+      <section class="quick-start panel" data-view="home" aria-labelledby="quickStartTitle">
         <div>
           <p class="eyebrow">Simple flow</p>
           <h2 id="quickStartTitle">Start here</h2>
           <p>Use BillPocket in this order: add bills, upload a statement, check the rows, then read the insights. Your data stays in this browser.</p>
         </div>
         <div class="quick-start-grid" aria-label="BillPocket workflow">
-          <a class="quick-step" href="#billsSection">
+          <a class="quick-step" href="#bills">
             <span>1</span>
             <strong>Add bills</strong>
             <small>Rent, subscriptions, phone, gym, and repeat costs.</small>
           </a>
-          <a class="quick-step" href="#statementsSection">
+          <a class="quick-step" href="#upload">
             <span>2</span>
             <strong>Upload statement</strong>
             <small>CSV is best. PDF works when the text is readable.</small>
           </a>
-          <a class="quick-step" href="#analystSection">
+          <a class="quick-step" href="#review">
             <span>3</span>
-            <strong>Check rows</strong>
+            <strong>Review rows</strong>
             <small>Money In is received. Money Out is spent.</small>
           </a>
-          <a class="quick-step" href="#simulatorSection">
+          <a class="quick-step" href="#whatif">
             <span>4</span>
-            <strong>Plan changes</strong>
-            <small>Use budgets and simulator after the rows look right.</small>
+            <strong>Plan ahead</strong>
+            <small>Use budgets and What-if simulator after the rows look right.</small>
           </a>
         </div>
       </section>
 
-      <div class="workspace" id="billsSection">
+      <div class="workspace" id="billsSection" data-view="bills">
         <section class="panel form-panel" aria-labelledby="formTitle">
           <div class="section-heading">
             <h2 id="formTitle">Add bill</h2>
             <button class="ghost-button" id="resetFormButton" type="button">Clear</button>
           </div>
+
+          <div id="billTemplatesRow" class="template-row" aria-label="Quick presets"></div>
 
           <form id="billForm" autocomplete="off">
             <input id="billId" type="hidden">
@@ -180,7 +190,7 @@
         </section>
       </div>
 
-      <section class="insights-grid" id="insightsSection" aria-label="Spending insights">
+      <section class="insights-grid" id="insightsSection" data-view="home" aria-label="Spending insights">
         <article class="panel insight-panel" aria-labelledby="insightsTitle">
           <div class="section-heading">
             <div>
@@ -203,7 +213,7 @@
         </article>
       </section>
 
-      <section class="visual-section panel" id="chartsSection" aria-labelledby="visualTitle">
+      <section class="visual-section panel" id="chartsSection" data-view="charts" aria-labelledby="visualTitle">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Visual insights</p>
@@ -230,7 +240,7 @@
         </div>
       </section>
 
-      <section class="statement-section panel" id="statementsSection" aria-labelledby="statementTitle">
+      <section class="statement-section panel" id="statementsSection" data-view="upload" aria-labelledby="statementTitle">
         <div class="section-heading statement-heading">
           <div>
             <p class="eyebrow">Bank statement</p>
@@ -265,7 +275,7 @@
             <span>The account balance after that row in the statement.</span>
           </div>
         </div>
-        <p class="trust-note">If a row looks wrong, change its Type or Category in Check rows. BillPocket recalculates locally.</p>
+        <p class="trust-note">If a row looks wrong, change its Type or Category in Review. BillPocket recalculates locally.</p>
         <div class="statement-paste">
           <label>
             Paste statement text
@@ -289,7 +299,7 @@
         </div>
       </section>
 
-      <section class="analyst-section panel" id="analystSection" aria-labelledby="analystTitle">
+      <section class="analyst-section panel" id="analystSection" data-view="review" aria-labelledby="analystTitle">
         <div class="section-heading analyst-heading">
           <div>
             <p class="eyebrow">Check data</p>
@@ -408,7 +418,7 @@
         </div>
       </section>
 
-      <section class="planning-section panel" id="plannerSection" aria-labelledby="planningTitle">
+      <section class="planning-section panel" id="plannerSection" data-view="whatif" aria-labelledby="planningTitle">
         <div class="section-heading planning-heading">
           <div>
             <p class="eyebrow">Money planner</p>
@@ -459,7 +469,7 @@
         </div>
       </section>
 
-      <section class="privacy-section panel" id="privacySection" aria-labelledby="privacyTitle">
+      <section class="privacy-section panel" id="privacySection" data-view="tools" aria-labelledby="privacyTitle">
         <div class="section-heading privacy-heading">
           <div>
             <p class="eyebrow">Privacy report</p>
@@ -471,7 +481,7 @@
         <div id="privacyReportList" class="privacy-report-list"></div>
       </section>
 
-      <section class="simulator-section panel" id="simulatorSection" aria-labelledby="simulatorTitle">
+      <section class="simulator-section panel" id="simulatorSection" data-view="whatif" aria-labelledby="simulatorTitle">
         <div class="section-heading">
           <div>
             <p class="eyebrow">What happens if I…</p>
@@ -572,7 +582,7 @@
         </div>
       </section>
 
-      <section class="tools-grid" id="toolsSection" aria-label="BillPocket tools">
+      <section class="tools-grid" id="toolsSection" data-view="tools" aria-label="BillPocket tools">
         <article class="panel tool-panel" aria-labelledby="exportTitle">
           <div class="section-heading">
             <div>
@@ -684,19 +694,19 @@
     <!-- Modular build. Classic scripts sharing one global scope (no ES modules,
          so the app keeps working when opened directly via file://). Load order
          matters: constants/refs/helpers first, app.js (bootstrap + wiring) last. -->
-    <script src="js/constants.js?v=20260621-modular1"></script>
-    <script src="js/dom.js?v=20260621-modular1"></script>
-    <script src="js/utils.js?v=20260621-modular1"></script>
-    <script src="js/storage.js?v=20260621-modular1"></script>
-    <script src="js/statement-parser.js?v=20260621-modular1"></script>
-    <script src="js/statement-analysis.js?v=20260621-modular1"></script>
-    <script src="js/account.js?v=20260621-modular1"></script>
-    <script src="js/transactions.js?v=20260621-modular1"></script>
-    <script src="js/charts.js?v=20260621-modular1"></script>
-    <script src="js/planning.js?v=20260621-modular1"></script>
-    <script src="js/simulator.js?v=20260621-modular1"></script>
-    <script src="js/bills.js?v=20260621-modular1"></script>
-    <script src="js/ui.js?v=20260621-modular1"></script>
-    <script src="js/app.js?v=20260621-modular1"></script>
+    <script src="js/constants.js?v=20260622-slate1"></script>
+    <script src="js/dom.js?v=20260622-slate1"></script>
+    <script src="js/utils.js?v=20260622-slate1"></script>
+    <script src="js/storage.js?v=20260622-slate1"></script>
+    <script src="js/statement-parser.js?v=20260622-slate1"></script>
+    <script src="js/statement-analysis.js?v=20260622-slate1"></script>
+    <script src="js/account.js?v=20260622-slate1"></script>
+    <script src="js/transactions.js?v=20260622-slate1"></script>
+    <script src="js/charts.js?v=20260622-slate1"></script>
+    <script src="js/planning.js?v=20260622-slate1"></script>
+    <script src="js/simulator.js?v=20260622-slate1"></script>
+    <script src="js/bills.js?v=20260622-slate1"></script>
+    <script src="js/ui.js?v=20260622-slate1"></script>
+    <script src="js/app.js?v=20260622-slate1"></script>
   </body>
 </html>

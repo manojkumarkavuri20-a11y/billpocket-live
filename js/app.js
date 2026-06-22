@@ -5,6 +5,10 @@
 let bills = loadBills();
 let categories = loadCategories();
 let categoryRules = loadCategoryRules();
+let activeAccent = loadAccentPreference();
+let onboardingState = loadOnboardingState();
+let activeView = "home";
+let undoSnapshot = null;
 let simulatorScenarios = loadSimulatorScenarios();
 let currentSimResult = null;
 let accountSettings = loadAccountSettings();
@@ -20,6 +24,9 @@ let cancelPlans = loadCancelPlans();
 let latestImportReport = null;
 
 applyTheme(loadTheme(), Boolean(localStorage.getItem(THEME_KEY)));
+applyAccent(activeAccent);
+renderAccentPicker();
+renderBillTemplates();
 renderCategories();
 renderCategoryRules();
 renderStatementAccountOptions();
@@ -34,6 +41,19 @@ renderSimulator();
 renderPrivacyReport();
 setDefaultDueDate();
 render();
+renderOnboarding();
+setActiveView(readActiveViewFromHash(), { skipPush: true });
+
+// PWA install (HTTP only — skip silently on file:// where SW is unsupported)
+if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+window.addEventListener("hashchange", () => {
+  setActiveView(readActiveViewFromHash(), { skipPush: true });
+});
+
+window.addEventListener("keydown", handleGlobalKeyDown);
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -69,6 +89,8 @@ form.addEventListener("submit", (event) => {
   saveBills();
   resetForm();
   render();
+  markOnboardingStep("hasBill");
+  showToast(`${bill.name} saved`);
 });
 
 resetFormButton.addEventListener("click", resetForm);
@@ -119,6 +141,16 @@ wipeAllButton.addEventListener("click", wipeAllLocalData);
 categoryForm.addEventListener("submit", addCategory);
 if (categoryRuleForm) categoryRuleForm.addEventListener("submit", addCategoryRule);
 if (categoryRuleList) categoryRuleList.addEventListener("click", handleCategoryRuleAction);
+if (appNavLinks) appNavLinks.forEach((link) => link.addEventListener("click", handleNavLinkClick));
+if (accentPicker) accentPicker.addEventListener("click", handleAccentClick);
+if (globalSearchInput) {
+  globalSearchInput.addEventListener("input", handleGlobalSearchInput);
+  globalSearchInput.addEventListener("keydown", handleGlobalSearchKeyDown);
+  globalSearchInput.addEventListener("focus", handleGlobalSearchInput);
+}
+if (globalSearchResults) globalSearchResults.addEventListener("click", handleGlobalSearchResultClick);
+if (billTemplatesRow) billTemplatesRow.addEventListener("click", handleBillTemplateClick);
+if (onboardingCard) onboardingCard.addEventListener("click", handleOnboardingClick);
 reminderDaysInput.addEventListener("change", saveReminderSettings);
 reminderModeInput.addEventListener("change", saveReminderSettings);
 notificationButton.addEventListener("click", requestNotificationAccess);
@@ -169,7 +201,24 @@ billList.addEventListener("click", (event) => {
     if (!confirmed) {
       return;
     }
+    const previousBills = bills;
     bills = bills.filter((item) => item.id !== bill.id);
+    saveBills();
+    render();
+    showToast(`${bill.name} deleted`, {
+      undo: () => {
+        bills = previousBills;
+        saveBills();
+        render();
+        showToast(`${bill.name} restored`);
+      },
+    });
+    return;
+  }
+
+  if (action === "simulate") {
+    simulateFromBill(bill);
+    return;
   }
 
   saveBills();

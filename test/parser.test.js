@@ -61,5 +61,17 @@ check("NETFLIX -> Entertainment (not Transport)", api.categorizeStatement("NETFL
 check("TFL TRAVEL -> Transport", api.categorizeStatement("TFL TRAVEL CH"), "Transport");
 check("BP token -> Transport", api.categorizeStatement("BP GARAGE"), "Transport");
 
+// --- Bill templates list (sanity: static data still parses & isn't empty) --
+// Loaded by concatenating constants.js into a Function — the parser-test
+// bundle doesn't include it, so do a tiny standalone check.
+{
+  const constantsSrc = fs.readFileSync(path.join(ROOT, "js/constants.js"), "utf8");
+  const cfg = new Function(constantsSrc + ";return { billTemplates, accentOptions, viewIds };")();
+  check("bill templates list is non-empty", cfg.billTemplates.length > 0, true);
+  check("Netflix template present", cfg.billTemplates.some((t) => t.name === "Netflix"), true);
+  check("six accent options", cfg.accentOptions.length, 6);
+  check("seven views", cfg.viewIds.length, 7);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

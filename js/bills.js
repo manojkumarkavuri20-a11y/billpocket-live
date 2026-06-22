@@ -63,6 +63,7 @@ function renderBillCard(bill) {
         <button class="bill-action" data-action="edit" data-id="${bill.id}">Edit</button>
         <button class="bill-action" data-action="pause" data-id="${bill.id}">${pauseLabel}</button>
         <button class="bill-action" data-action="cancel" data-id="${bill.id}">${cancelLabel}</button>
+        <button class="bill-action" data-action="simulate" data-id="${bill.id}" title="What if I cancelled this?">Simulate this</button>
         <button class="bill-action danger" data-action="delete" data-id="${bill.id}">Delete</button>
       </div>
     </article>
@@ -151,33 +152,65 @@ function getCategoryRows(activeBills) {
 }
 
 function renderTimeline(activeBills) {
-  const upcomingBills = activeBills
-    .map((bill) => ({ ...bill, days: daysUntil(bill.nextDueDate) }))
-    .filter((bill) => bill.days >= 0 && bill.days <= 30)
-    .sort((a, b) => a.days - b.days || a.name.localeCompare(b.name));
+  if (!upcomingTimeline) return;
+  // Visual calendar grid for the next 30 days. Each cell shows the date and any
+  // bills due that day as compact chips. Past days and days with no bills are
+  // muted; today gets a highlight.
+  const today = startOfDay(new Date());
+  const dayCount = 30;
+  const billsByDay = new Map();
+  activeBills.forEach((bill) => {
+    const due = daysUntil(bill.nextDueDate);
+    if (due < 0 || due >= dayCount) return;
+    const key = String(due);
+    if (!billsByDay.has(key)) billsByDay.set(key, []);
+    billsByDay.get(key).push(bill);
+  });
 
-  if (upcomingBills.length === 0) {
+  const total = activeBills
+    .map((bill) => ({ bill, days: daysUntil(bill.nextDueDate) }))
+    .filter(({ days }) => days >= 0 && days < dayCount).length;
+  if (total === 0) {
     upcomingTimeline.innerHTML = `<p class="muted">No active bills are due in the next 30 days.</p>`;
     return;
   }
 
-  upcomingTimeline.innerHTML = upcomingBills
-    .map((bill) => {
-      const timing = bill.days === 0 ? "Today" : bill.days === 1 ? "Tomorrow" : `In ${bill.days} days`;
-      return `
-        <div class="timeline-item">
-          <div class="date-tile">
-            <strong>${parseLocalDate(bill.nextDueDate).getDate()}</strong>
-            <span>${new Intl.DateTimeFormat("en-GB", { month: "short" }).format(parseLocalDate(bill.nextDueDate))}</span>
-          </div>
-          <div>
-            <h3>${escapeHtml(bill.name)}</h3>
-            <p>${timing} · ${formatMoney(bill.amount, bill.currency)} · ${escapeHtml(bill.category)}</p>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
+  const cells = [];
+  for (let offset = 0; offset < dayCount; offset++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    const dayNum = date.getDate();
+    const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(date);
+    const cellBills = billsByDay.get(String(offset)) || [];
+    const cellClass = [
+      "calendar-cell",
+      offset === 0 ? "is-today" : "",
+      cellBills.length === 0 ? "is-empty" : "",
+    ].filter(Boolean).join(" ");
+    const chips = cellBills
+      .map(
+        (bill) =>
+          `<button type="button" class="calendar-chip" data-calendar-bill-id="${escapeHtml(bill.id)}" title="${escapeHtml(bill.name)} · ${formatMoney(bill.amount, bill.currency)}">${escapeHtml(bill.name)} · ${formatMoney(bill.amount, bill.currency)}</button>`
+      )
+      .join("");
+    cells.push(`
+      <div class="${cellClass}">
+        <div class="calendar-day">${dayNum}<small>${escapeHtml(monthLabel)}</small></div>
+        ${chips}
+      </div>
+    `);
+  }
+
+  upcomingTimeline.innerHTML = `<div class="calendar-grid">${cells.join("")}</div>`;
+  upcomingTimeline.querySelectorAll("[data-calendar-bill-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const bill = bills.find((b) => b.id === button.dataset.calendarBillId);
+      if (bill) {
+        setActiveView("bills");
+        fillForm(bill);
+      }
+    });
+  });
 }
 
 function fillForm(bill) {

@@ -360,6 +360,7 @@ function addCategoryRule(event) {
   if (categoryRuleStatus) {
     categoryRuleStatus.textContent = changed > 0 ? `Rule added. Re-filed ${changed} transaction${changed === 1 ? "" : "s"}.` : "Rule added. It will apply to new imports.";
   }
+  showToast(`Rule "${match} → ${category}" added${changed > 0 ? ` · re-filed ${changed}` : ""}`);
 }
 
 function handleCategoryRuleAction(event) {
@@ -705,4 +706,358 @@ function applyTheme(theme, persist = true) {
 function toggleTheme() {
   const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
   applyTheme(nextTheme);
+}
+
+// ─── View switcher (tabbed views + onboarding-aware) ─────────────────────────
+function readActiveViewFromHash() {
+  const hash = (location.hash || "").replace(/^#/, "");
+  return viewIds.includes(hash) ? hash : "home";
+}
+
+function setActiveView(viewId, options = {}) {
+  if (!viewIds.includes(viewId)) viewId = "home";
+  activeView = viewId;
+  document.querySelectorAll("[data-view]").forEach((node) => {
+    const id = node.dataset.view;
+    node.classList.toggle("is-active", id === viewId);
+  });
+  appNavLinks.forEach((link) => {
+    link.classList.toggle("active", link.dataset.view === viewId);
+  });
+  if (!options.skipPush && location.hash.replace(/^#/, "") !== viewId) {
+    history.replaceState(null, "", `#${viewId}`);
+  }
+  if (viewId === "charts") renderVisualInsights();
+  if (viewId === "review") renderAnalystCenter();
+  if (viewId === "home") {
+    if (!onboardingState.sawInsights && (bills.length > 0 || statementTransactions.length > 0)) {
+      markOnboardingStep("sawInsights");
+    }
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function handleNavLinkClick(event) {
+  const link = event.currentTarget;
+  const view = link.dataset.view;
+  if (!view) return;
+  event.preventDefault();
+  setActiveView(view);
+}
+
+// ─── Accent picker ───────────────────────────────────────────────────────────
+function applyAccent(accentId) {
+  const opt = accentOptions.find((o) => o.id === accentId);
+  activeAccent = opt ? opt.id : defaultAccent;
+  document.body.dataset.accent = activeAccent;
+}
+
+function renderAccentPicker() {
+  if (!accentPicker) return;
+  accentPicker.innerHTML = accentOptions
+    .map(
+      (opt) =>
+        `<button type="button" class="accent-swatch ${opt.id === activeAccent ? "is-active" : ""}" data-accent-id="${opt.id}" aria-label="${escapeHtml(opt.label)}" title="${escapeHtml(opt.label)}" style="--swatch:${opt.hex}"><span></span></button>`
+    )
+    .join("");
+}
+
+function handleAccentClick(event) {
+  const button = event.target.closest("button[data-accent-id]");
+  if (!button) return;
+  applyAccent(button.dataset.accentId);
+  saveAccentPreference();
+  renderAccentPicker();
+  renderPrivacyReport();
+  const label = accentOptions.find((o) => o.id === activeAccent)?.label || activeAccent;
+  showToast(`${label} accent applied`);
+}
+
+// ─── Onboarding card ─────────────────────────────────────────────────────────
+function markOnboardingStep(key) {
+  if (!onboardingState || onboardingState.dismissed) return;
+  if (onboardingState[key]) return;
+  onboardingState[key] = true;
+  saveOnboardingState();
+  renderOnboarding();
+}
+
+function isOnboardingComplete() {
+  return onboardingState.hasBill && onboardingState.hasStatement && onboardingState.sawInsights;
+}
+
+function renderOnboarding() {
+  if (!onboardingCard) return;
+  if (onboardingState.dismissed || isOnboardingComplete()) {
+    onboardingCard.hidden = true;
+    onboardingCard.innerHTML = "";
+    return;
+  }
+
+  const steps = [
+    { key: "hasBill",      title: "Add a bill",         body: "Rent, Netflix, gym — anything that repeats.",   action: { type: "view", view: "bills",  label: "Go to Bills" } },
+    { key: "hasStatement", title: "Upload a statement", body: "CSV or PDF from your bank works best.",          action: { type: "view", view: "upload", label: "Upload one" } },
+    { key: "sawInsights",  title: "See your picture",   body: "Charts and the safe-to-spend summary on Home.",  action: { type: "view", view: "home",   label: "Open Home" } },
+  ];
+
+  const completed = steps.filter((s) => onboardingState[s.key]).length;
+  onboardingCard.hidden = false;
+  onboardingCard.innerHTML = `
+    <div class="onboarding-head">
+      <div>
+        <p class="eyebrow">Get started · ${completed}/${steps.length}</p>
+        <h2>Three quick steps</h2>
+      </div>
+      <button class="ghost-button" type="button" data-onboarding-action="dismiss">Hide</button>
+    </div>
+    <ol class="onboarding-steps">
+      ${steps
+        .map(
+          (step, index) => `
+        <li class="onboarding-step ${onboardingState[step.key] ? "is-done" : ""}">
+          <span class="onboarding-bullet">${onboardingState[step.key] ? "✓" : index + 1}</span>
+          <div>
+            <h3>${escapeHtml(step.title)}</h3>
+            <p>${escapeHtml(step.body)}</p>
+          </div>
+          ${
+            onboardingState[step.key]
+              ? `<span class="muted">Done</span>`
+              : `<button class="ghost-button" type="button" data-onboarding-action="go" data-view="${step.action.view}">${escapeHtml(step.action.label)}</button>`
+          }
+        </li>`
+        )
+        .join("")}
+    </ol>
+  `;
+}
+
+function handleOnboardingClick(event) {
+  const button = event.target.closest("button[data-onboarding-action]");
+  if (!button) return;
+  const action = button.dataset.onboardingAction;
+  if (action === "dismiss") {
+    onboardingState.dismissed = true;
+    saveOnboardingState();
+    renderOnboarding();
+    return;
+  }
+  if (action === "go" && button.dataset.view) {
+    setActiveView(button.dataset.view);
+  }
+}
+
+// ─── Toast notifications + Undo ──────────────────────────────────────────────
+let toastTimerId = null;
+function showToast(message, options = {}) {
+  if (!toastHost) return;
+  if (toastTimerId) {
+    clearTimeout(toastTimerId);
+    toastTimerId = null;
+  }
+  const hasUndo = typeof options.undo === "function";
+  toastHost.innerHTML = `
+    <div class="toast" role="status" aria-live="polite">
+      <span>${escapeHtml(message)}</span>
+      ${hasUndo ? `<button type="button" class="toast-undo" data-toast-action="undo">Undo</button>` : ""}
+      <button type="button" class="toast-close" data-toast-action="close" aria-label="Dismiss">×</button>
+    </div>
+  `;
+  const node = toastHost.querySelector(".toast");
+  const close = () => {
+    if (toastTimerId) clearTimeout(toastTimerId);
+    toastTimerId = null;
+    toastHost.innerHTML = "";
+  };
+  node.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-toast-action]")?.dataset.toastAction;
+    if (action === "undo" && hasUndo) {
+      close();
+      options.undo();
+    }
+    if (action === "close") {
+      close();
+    }
+  });
+  toastTimerId = setTimeout(close, options.duration || 6000);
+}
+
+// ─── Global search ───────────────────────────────────────────────────────────
+function handleGlobalSearchInput() {
+  if (!globalSearchInput || !globalSearchResults) return;
+  const query = globalSearchInput.value.trim().toLowerCase();
+  if (!query) {
+    globalSearchResults.hidden = true;
+    globalSearchResults.innerHTML = "";
+    return;
+  }
+  const results = runGlobalSearch(query).slice(0, 12);
+  if (results.length === 0) {
+    globalSearchResults.hidden = false;
+    globalSearchResults.innerHTML = `<p class="muted search-empty">No matches for "${escapeHtml(query)}"</p>`;
+    return;
+  }
+  globalSearchResults.hidden = false;
+  globalSearchResults.innerHTML = results
+    .map(
+      (r) =>
+        `<button type="button" class="search-result" data-search-view="${r.view}" data-search-id="${escapeHtml(r.id || "")}">
+          <span class="search-kind">${r.kind}</span>
+          <span class="search-title">${escapeHtml(r.title)}</span>
+          ${r.detail ? `<span class="search-detail muted">${escapeHtml(r.detail)}</span>` : ""}
+        </button>`
+    )
+    .join("");
+}
+
+function runGlobalSearch(query) {
+  const results = [];
+  bills.forEach((bill) => {
+    const haystack = `${bill.name} ${bill.note || ""} ${bill.category}`.toLowerCase();
+    if (haystack.includes(query)) {
+      results.push({
+        kind: "Bill",
+        title: bill.name,
+        detail: `${formatMoney(bill.amount, bill.currency || "GBP")} · ${bill.category}`,
+        view: "bills",
+        id: bill.id,
+      });
+    }
+  });
+  statementTransactions.slice(0, 500).forEach((tx) => {
+    const haystack = `${tx.merchant} ${tx.description} ${tx.account || ""} ${tx.category || ""}`.toLowerCase();
+    if (haystack.includes(query)) {
+      results.push({
+        kind: "Tx",
+        title: titleCase(tx.merchant),
+        detail: `${formatDate(tx.date)} · ${tx.category} · ${tx.account || ""}`,
+        view: "review",
+      });
+    }
+  });
+  categories.forEach((cat) => {
+    if (cat.toLowerCase().includes(query)) {
+      results.push({ kind: "Category", title: cat, view: "tools" });
+    }
+  });
+  (Array.isArray(categoryRules) ? categoryRules : []).forEach((rule) => {
+    if (`${rule.match} ${rule.category}`.toLowerCase().includes(query)) {
+      results.push({ kind: "Rule", title: `${rule.match} → ${rule.category}`, view: "tools" });
+    }
+  });
+  return results;
+}
+
+function handleGlobalSearchKeyDown(event) {
+  if (event.key === "Escape") {
+    globalSearchInput.value = "";
+    globalSearchInput.blur();
+    if (globalSearchResults) {
+      globalSearchResults.hidden = true;
+      globalSearchResults.innerHTML = "";
+    }
+  }
+}
+
+function handleGlobalSearchResultClick(event) {
+  const button = event.target.closest(".search-result");
+  if (!button) return;
+  const view = button.dataset.searchView || "home";
+  setActiveView(view);
+  if (globalSearchInput) globalSearchInput.value = "";
+  if (globalSearchResults) {
+    globalSearchResults.hidden = true;
+    globalSearchResults.innerHTML = "";
+  }
+}
+
+// ─── Bill templates ──────────────────────────────────────────────────────────
+function renderBillTemplates() {
+  if (!billTemplatesRow) return;
+  billTemplatesRow.innerHTML = billTemplates
+    .map(
+      (tpl, idx) =>
+        `<button type="button" class="template-chip" data-template-index="${idx}">+ ${escapeHtml(tpl.name)}${tpl.amount ? ` · ${formatMoney(tpl.amount, "GBP")}` : ""}</button>`
+    )
+    .join("");
+}
+
+function handleBillTemplateClick(event) {
+  const button = event.target.closest("button[data-template-index]");
+  if (!button) return;
+  const tpl = billTemplates[Number(button.dataset.templateIndex)];
+  if (!tpl) return;
+  billIdInput.value = "";
+  nameInput.value = tpl.name;
+  amountInput.value = tpl.amount > 0 ? tpl.amount.toFixed(2) : "";
+  currencyInput.value = "GBP";
+  frequencyInput.value = tpl.frequency;
+  categoryInput.value = categories.includes(tpl.category) ? tpl.category : "Other";
+  noteInput.value = "";
+  setDefaultDueDate();
+  formTitle.textContent = `Add ${tpl.name}`;
+  saveButton.textContent = "Save bill";
+  setActiveView("bills");
+  nameInput.focus();
+}
+
+// ─── Simulate this ───────────────────────────────────────────────────────────
+function simulateFromBill(bill) {
+  const monthly = monthlyEquivalent(bill);
+  if (simNameInput) simNameInput.value = `Cancel ${bill.name}`;
+  if (simSubSavingsInput) simSubSavingsInput.value = monthly.toFixed(2);
+  setActiveView("whatif");
+  if (simulatorForm) {
+    const submit = simulatorForm.querySelector("button[type='submit']");
+    if (submit) submit.focus();
+  }
+  showToast(`Simulator set up: cancel ${bill.name}`);
+}
+
+// ─── Keyboard shortcuts ──────────────────────────────────────────────────────
+let pendingGotoTimer = null;
+let pendingGoto = false;
+const gotoMap = { h: "home", b: "bills", u: "upload", r: "review", c: "charts", w: "whatif", t: "tools" };
+
+function handleGlobalKeyDown(event) {
+  const tag = (event.target.tagName || "").toLowerCase();
+  const isTyping = ["input", "textarea", "select"].includes(tag) || (event.target.isContentEditable === true);
+
+  if (event.key === "Escape") {
+    if (toastHost && toastHost.innerHTML) { toastHost.innerHTML = ""; return; }
+    if (globalSearchResults && !globalSearchResults.hidden) {
+      globalSearchResults.hidden = true;
+      globalSearchResults.innerHTML = "";
+      return;
+    }
+  }
+
+  if (isTyping) return;
+
+  if (event.key === "/") {
+    if (globalSearchInput) {
+      event.preventDefault();
+      globalSearchInput.focus();
+      globalSearchInput.select();
+    }
+    return;
+  }
+  if (event.key === "n") {
+    event.preventDefault();
+    setActiveView("bills");
+    if (nameInput) nameInput.focus();
+    return;
+  }
+  if (event.key === "g") {
+    pendingGoto = true;
+    clearTimeout(pendingGotoTimer);
+    pendingGotoTimer = setTimeout(() => { pendingGoto = false; }, 900);
+    return;
+  }
+  if (pendingGoto && gotoMap[event.key]) {
+    event.preventDefault();
+    pendingGoto = false;
+    clearTimeout(pendingGotoTimer);
+    setActiveView(gotoMap[event.key]);
+  }
 }

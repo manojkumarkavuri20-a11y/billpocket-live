@@ -218,7 +218,9 @@ function renderStatementTransactions(transactions, sourceLabels, skippedLabels) 
   const sourceText = sourceLabels.length === 1 ? sourceLabels[0] : `${sourceLabels.length} files`;
   const skippedText = skippedLabels.length ? ` Skipped ${skippedLabels.length}: ${skippedLabels.slice(0, 2).join("; ")}${skippedLabels.length > 2 ? "..." : ""}` : "";
   const balanceText = formatBalanceCheckSummary(getBalanceCheckSummary(transactions));
-  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}. Next: open Check rows and confirm Money In, Money Out, and Balance.${balanceText}${skippedText}`;
+  statementMessage.textContent = `Merged ${mergeResult.added} new, updated ${mergeResult.updated}, skipped ${mergeResult.duplicates} duplicate transaction${mergeResult.duplicates === 1 ? "" : "s"} from ${sourceText}. Saved total: ${statementTransactions.length}. Next: open Review and confirm Money In, Money Out, and Balance.${balanceText}${skippedText}`;
+  markOnboardingStep("hasStatement");
+  showToast(`Imported ${mergeResult.added} new transactions`);
 }
 
 async function extractStatementTextFromFile(file) {
