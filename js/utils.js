@@ -305,6 +305,31 @@ function formatMoney(amount, currency) {
   }).format(amount);
 }
 
+// Multi-currency conversion. If `displayCurrency` differs from `currency`,
+// the amount is converted via the locally-stored FX rates (1 unit of X = rate
+// units of GBP base). Returns the converted value AND the formatted string,
+// so callers can either use formatMoneyDisplay() for UI or get the raw number.
+function convertCurrency(amount, fromCurrency, toCurrency) {
+  if (!fromCurrency || fromCurrency === toCurrency) return Number(amount) || 0;
+  if (typeof fxRates !== "object" || !fxRates) return Number(amount) || 0;
+  const fromRate = Number(fxRates[fromCurrency]) || 1;
+  const toRate = Number(fxRates[toCurrency]) || 1;
+  if (toRate === 0) return Number(amount) || 0;
+  // amount * fromRate = GBP equivalent; / toRate = target currency
+  return roundMoney((Number(amount) || 0) * fromRate / toRate);
+}
+
+// Format a money value, converting to the user's chosen display currency
+// when set. Mirrors formatMoney's API but funnels everything through one
+// display currency for cross-currency summary screens.
+function formatMoneyDisplay(amount, sourceCurrency) {
+  const display = typeof displayCurrency === "string" ? displayCurrency : fxBaseCurrency;
+  if (!sourceCurrency || sourceCurrency === display) {
+    return formatMoney(amount, display);
+  }
+  return formatMoney(convertCurrency(amount, sourceCurrency, display), display);
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => {
     const replacements = {

@@ -1061,3 +1061,407 @@ function handleGlobalKeyDown(event) {
     setActiveView(gotoMap[event.key]);
   }
 }
+
+// ─── Multi-currency UI ───────────────────────────────────────────────────────
+function renderDisplayCurrencySelect() {
+  if (!displayCurrencySelect) return;
+  displayCurrencySelect.innerHTML = supportedCurrencies
+    .map((code) => `<option value="${code}">${code}</option>`)
+    .join("");
+  displayCurrencySelect.value = displayCurrency || fxBaseCurrency;
+  displayCurrencySelect.onchange = () => {
+    displayCurrency = displayCurrencySelect.value;
+    render();
+    renderPlanning();
+    renderAnalystCenter();
+    renderVisualInsights();
+    showToast(`Showing all totals in ${displayCurrency}`);
+  };
+}
+
+function renderFxRateList() {
+  if (!fxRateList) return;
+  fxRateList.innerHTML = supportedCurrencies
+    .filter((code) => code !== fxBaseCurrency)
+    .map((code) => {
+      const rate = Number(fxRates[code]) || defaultFxRates[code];
+      return `
+        <div class="fx-rate-row">
+          <label>1 ${escapeHtml(code)} =
+            <input type="number" step="0.0001" min="0" data-fx-code="${code}" value="${rate}" inputmode="decimal">
+          </label>
+          <span class="muted">${escapeHtml(fxBaseCurrency)}</span>
+        </div>`;
+    })
+    .join("");
+  fxRateList.querySelectorAll("input[data-fx-code]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const code = input.dataset.fxCode;
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0) {
+        input.value = String(fxRates[code] || defaultFxRates[code]);
+        return;
+      }
+      fxRates = { ...fxRates, [code]: value };
+      saveFxRates();
+      render();
+      renderPlanning();
+      renderAnalystCenter();
+      renderVisualInsights();
+    });
+  });
+}
+
+// ─── Tags UI ─────────────────────────────────────────────────────────────────
+function renderTagsPanel() {
+  if (!tagList) return;
+  if (!Array.isArray(tags) || tags.length === 0) {
+    tagList.innerHTML = `<p class="muted">No tags yet. Add some to label transactions or bills across categories.</p>`;
+    return;
+  }
+  tagList.innerHTML = tags
+    .map(
+      (tag) =>
+        `<span class="tag" style="border-color:${escapeHtml(tag.color)}; color:${escapeHtml(tag.color)}">${escapeHtml(tag.name)}<button type="button" data-tag-id="${escapeHtml(tag.id)}" aria-label="Remove tag ${escapeHtml(tag.name)}">Remove</button></span>`
+    )
+    .join("");
+}
+
+function addTagFromForm(event) {
+  event.preventDefault();
+  if (!newTagInput) return;
+  const name = newTagInput.value.trim();
+  if (!name) return;
+  if (tags.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
+    showToast(`Tag "${name}" already exists`);
+    newTagInput.value = "";
+    return;
+  }
+  const color = defaultTagPalette[tags.length % defaultTagPalette.length];
+  tags = [...tags, { id: createId(), name: name.slice(0, 30), color }];
+  saveTags();
+  renderTagsPanel();
+  renderAnalystCenter();
+  newTagInput.value = "";
+  showToast(`Tag "${name}" added`);
+}
+
+function handleTagListClick(event) {
+  const button = event.target.closest("button[data-tag-id]");
+  if (!button) return;
+  const tagId = button.dataset.tagId;
+  const removed = tags.find((t) => t.id === tagId);
+  tags = tags.filter((t) => t.id !== tagId);
+  saveTags();
+  // Strip the tag from any transactions that referenced it.
+  let changed = 0;
+  statementTransactions = statementTransactions.map((tx) => {
+    if (Array.isArray(tx.tags) && tx.tags.includes(tagId)) {
+      changed += 1;
+      return { ...tx, tags: tx.tags.filter((id) => id !== tagId) };
+    }
+    return tx;
+  });
+  if (changed > 0) saveStatementTransactions();
+  renderTagsPanel();
+  renderAnalystCenter();
+  if (removed) showToast(`Tag "${removed.name}" removed${changed ? ` · cleared from ${changed} transactions` : ""}`);
+}
+
+// ─── .ics calendar export ────────────────────────────────────────────────────
+function exportBillsAsIcs() {
+  const active = bills.filter((b) => b.status === "active");
+  if (active.length === 0) {
+    showToast("No active bills to export");
+    return;
+  }
+  const now = new Date();
+  const dtstamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}T${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}00Z`;
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//BillPocket//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "X-WR-CALNAME:BillPocket bills",
+  ];
+  for (const bill of active) {
+    if (!bill.nextDueDate) continue;
+    const startDate = bill.nextDueDate.replace(/-/g, "");
+    const rrule =
+      bill.frequency === "weekly"    ? "RRULE:FREQ=WEEKLY"
+    : bill.frequency === "quarterly" ? "RRULE:FREQ=MONTHLY;INTERVAL=3"
+    : bill.frequency === "yearly"    ? "RRULE:FREQ=YEARLY"
+    :                                  "RRULE:FREQ=MONTHLY";
+    const summary = `${bill.name} · ${formatMoney(bill.amount, bill.currency || "GBP")}`;
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${bill.id}@billpocket.local`,
+      `DTSTAMP:${dtstamp}`,
+      `DTSTART;VALUE=DATE:${startDate}`,
+      `SUMMARY:${icsEscape(summary)}`,
+      `DESCRIPTION:${icsEscape(`${bill.category}${bill.note ? " · " + bill.note : ""}`)}`,
+      rrule,
+      "END:VEVENT"
+    );
+  }
+  lines.push("END:VCALENDAR");
+  downloadFile("billpocket-bills.ics", lines.join("\r\n"), "text/calendar");
+  showToast(`Exported ${active.length} bills to billpocket-bills.ics`);
+}
+
+function icsEscape(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+// ─── PIN lock + encrypted snapshot share (WebCrypto AES-GCM) ────────────────
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(passphrase),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+function bytesToBase64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function base64ToBytes(b64) {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+// Pack all visible BillPocket state into one plaintext JSON snapshot.
+function buildSnapshotPayload() {
+  return {
+    schema: "billpocket.snapshot/v1",
+    exportedAt: new Date().toISOString(),
+    bills,
+    categories,
+    categoryRules,
+    statementTransactions,
+    budgets,
+    savingsGoals,
+    cancelPlans,
+    accountSettings,
+    simulatorScenarios,
+    reminderSettings,
+    fxRates,
+    tags,
+    savedFilters,
+    paymentHistory,
+    accent: activeAccent,
+    onboardingState,
+  };
+}
+
+async function encryptSnapshot(passphrase, payloadObj) {
+  if (!window.crypto || !window.crypto.subtle) throw new Error("WebCrypto unavailable");
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const enc = new TextEncoder();
+  const cipher = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    enc.encode(JSON.stringify(payloadObj))
+  );
+  return {
+    v: 1,
+    alg: "AES-GCM",
+    iter: 250000,
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    ct: bytesToBase64(new Uint8Array(cipher)),
+  };
+}
+
+async function decryptSnapshot(passphrase, envelope) {
+  if (!envelope || envelope.alg !== "AES-GCM" || !envelope.salt || !envelope.iv || !envelope.ct) {
+    throw new Error("Not a BillPocket encrypted snapshot");
+  }
+  const salt = base64ToBytes(envelope.salt);
+  const iv = base64ToBytes(envelope.iv);
+  const key = await deriveKey(passphrase, salt);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    base64ToBytes(envelope.ct)
+  );
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function applySnapshotToState(payload) {
+  if (!payload || payload.schema !== "billpocket.snapshot/v1") {
+    throw new Error("Snapshot schema mismatch");
+  }
+  bills = Array.isArray(payload.bills) ? payload.bills.map(normalizeImportedBill).filter(Boolean) : bills;
+  categories = Array.isArray(payload.categories) ? [...new Set([...defaultCategories, ...payload.categories])] : categories;
+  categoryRules = Array.isArray(payload.categoryRules) ? payload.categoryRules : categoryRules;
+  statementTransactions = Array.isArray(payload.statementTransactions)
+    ? sortTransactionsByStatementOrder(payload.statementTransactions.map((t, i) => normalizeStoredTransaction(t, i)).filter(isValidSavedTransaction))
+    : statementTransactions;
+  budgets = payload.budgets && typeof payload.budgets === "object" && !Array.isArray(payload.budgets) ? payload.budgets : budgets;
+  savingsGoals = Array.isArray(payload.savingsGoals) ? payload.savingsGoals : savingsGoals;
+  cancelPlans = Array.isArray(payload.cancelPlans) ? payload.cancelPlans : cancelPlans;
+  accountSettings = normalizeAccountSettings(payload.accountSettings || accountSettings);
+  simulatorScenarios = Array.isArray(payload.simulatorScenarios) ? payload.simulatorScenarios : simulatorScenarios;
+  reminderSettings = payload.reminderSettings && typeof payload.reminderSettings === "object" ? payload.reminderSettings : reminderSettings;
+  fxRates = payload.fxRates && typeof payload.fxRates === "object" ? { ...defaultFxRates, ...payload.fxRates, [fxBaseCurrency]: 1 } : fxRates;
+  tags = Array.isArray(payload.tags) ? payload.tags : tags;
+  savedFilters = Array.isArray(payload.savedFilters) ? payload.savedFilters : savedFilters;
+  paymentHistory = payload.paymentHistory && typeof payload.paymentHistory === "object" ? payload.paymentHistory : paymentHistory;
+  if (typeof payload.accent === "string" && accentOptions.some((o) => o.id === payload.accent)) {
+    activeAccent = payload.accent;
+    applyAccent(activeAccent);
+    saveAccentPreference();
+  }
+  onboardingState = payload.onboardingState && typeof payload.onboardingState === "object" ? payload.onboardingState : onboardingState;
+}
+
+function persistAllForLock() {
+  saveBills(); saveCategories(); saveCategoryRules(); saveStatementTransactions();
+  saveBudgets(); saveSavingsGoals(); saveCancelPlans(); saveAccountSettings();
+  saveSimulatorScenarios(); saveFxRates(); saveTags(); saveSavedFilters(); savePaymentHistory();
+}
+
+async function shareEncryptedSnapshot() {
+  const passphrase = window.prompt("Set a passphrase for this snapshot (minimum 8 characters):");
+  if (!passphrase || passphrase.length < 8) {
+    if (passphrase !== null) showToast("Passphrase too short — need at least 8 characters");
+    return;
+  }
+  try {
+    const envelope = await encryptSnapshot(passphrase, buildSnapshotPayload());
+    const blob = btoa(JSON.stringify(envelope));
+    window.prompt(
+      "Encrypted snapshot — copy and share. Recipient needs the passphrase to import.",
+      `BILLPOCKET:${blob}`
+    );
+    showToast("Encrypted snapshot ready to copy");
+  } catch (error) {
+    console.warn("Snapshot encrypt failed", error);
+    showToast("Could not encrypt snapshot (WebCrypto unavailable?)");
+  }
+}
+
+async function importEncryptedSnapshot() {
+  const blob = window.prompt("Paste the BillPocket: encrypted snapshot:");
+  if (!blob) return;
+  const trimmed = blob.replace(/^BILLPOCKET:/, "").trim();
+  let envelope;
+  try {
+    envelope = JSON.parse(atob(trimmed));
+  } catch {
+    showToast("That doesn't look like a BillPocket snapshot");
+    return;
+  }
+  const passphrase = window.prompt("Passphrase:");
+  if (!passphrase) return;
+  try {
+    const payload = await decryptSnapshot(passphrase, envelope);
+    const confirmed = window.confirm("Import this snapshot? It will replace bills, transactions, budgets, goals, accounts, scenarios, FX rates, tags, and rules on this device.");
+    if (!confirmed) return;
+    applySnapshotToState(payload);
+    persistAllForLock();
+    renderCategories(); renderCategoryRules(); renderStatementAccountOptions();
+    renderAccountSettings(); renderStoredStatementState(); renderPlanning();
+    renderVisualInsights(); renderAnalystCenter(); renderSimulator();
+    renderTagsPanel(); renderFxRateList(); renderDisplayCurrencySelect();
+    renderPrivacyReport();
+    render();
+    showToast("Snapshot imported");
+  } catch (error) {
+    console.warn("Snapshot decrypt failed", error);
+    showToast("Decrypt failed — wrong passphrase or corrupted snapshot");
+  }
+}
+
+async function toggleLock() {
+  if (!window.crypto || !window.crypto.subtle) {
+    showToast("WebCrypto unavailable in this browser");
+    return;
+  }
+  if (lockState.enabled) {
+    const confirmed = window.confirm("Disable passphrase lock? Your data will be readable to anyone with access to this browser.");
+    if (!confirmed) return;
+    lockState = { enabled: false };
+    saveLockState();
+    localStorage.removeItem(LOCKED_BLOB_KEY);
+    if (securityStatus) securityStatus.textContent = "Lock disabled.";
+    updateLockUi();
+    showToast("Lock disabled");
+    return;
+  }
+  const passphrase = window.prompt("Set a passphrase (minimum 8 characters). If you forget it, your data is gone forever — export a backup first.");
+  if (!passphrase || passphrase.length < 8) {
+    if (passphrase !== null) showToast("Passphrase too short");
+    return;
+  }
+  const confirmPass = window.prompt("Confirm passphrase:");
+  if (confirmPass !== passphrase) {
+    showToast("Passphrases did not match");
+    return;
+  }
+  try {
+    const envelope = await encryptSnapshot(passphrase, buildSnapshotPayload());
+    localStorage.setItem(LOCKED_BLOB_KEY, JSON.stringify(envelope));
+    lockState = { enabled: true, lockedOn: new Date().toISOString() };
+    saveLockState();
+    if (securityStatus) securityStatus.textContent = "Lock active. Reload to require the passphrase.";
+    updateLockUi();
+    showToast("Passphrase lock enabled · reload to require it");
+  } catch (error) {
+    console.warn("Lock setup failed", error);
+    showToast("Could not enable lock");
+  }
+}
+
+function updateLockUi() {
+  if (!lockToggleButton) return;
+  lockToggleButton.textContent = lockState && lockState.enabled ? "Disable passphrase lock" : "Enable passphrase lock";
+}
+
+// Called once at boot if a locked blob exists; gates the rest of the app until
+// the user supplies the right passphrase.
+async function maybeUnlockOnBoot() {
+  const lockedBlob = localStorage.getItem(LOCKED_BLOB_KEY);
+  if (!lockedBlob || !lockState || !lockState.enabled) return true;
+  if (!window.crypto || !window.crypto.subtle) {
+    window.alert("This browser cannot unlock your encrypted data (WebCrypto unavailable). Use a modern browser.");
+    return false;
+  }
+  let envelope;
+  try { envelope = JSON.parse(lockedBlob); } catch { return false; }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const passphrase = window.prompt(attempt === 0 ? "BillPocket is locked. Enter passphrase:" : "Incorrect. Try again:");
+    if (passphrase === null) {
+      document.body.innerHTML = "<p style=\"font: 16px system-ui; padding: 32px;\">BillPocket is locked. Reload to try again.</p>";
+      return false;
+    }
+    try {
+      const payload = await decryptSnapshot(passphrase, envelope);
+      applySnapshotToState(payload);
+      persistAllForLock();
+      return true;
+    } catch {
+      // wrong passphrase — retry
+    }
+  }
+  document.body.innerHTML = "<p style=\"font: 16px system-ui; padding: 32px;\">Too many wrong passphrase attempts. Reload to try again.</p>";
+  return false;
+}

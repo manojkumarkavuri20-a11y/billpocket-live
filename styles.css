@@ -1486,3 +1486,43 @@ body[data-theme="dark"][data-accent="teal"]       { --accent: #78b0aa; --accent-
   .calendar-grid { grid-template-columns: repeat(4, 1fr); }
   .app-header-search { flex: 1 1 100%; order: 3; }
 }
+
+/* ─── FX rate editor ─────────────────────────────────────── */
+.fx-rate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+}
+.fx-rate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.fx-rate-row label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+.fx-rate-row input {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  width: 80px;
+  text-align: right;
+}
+
+/* ─── Security panel ─────────────────────────────────────── */
+.security-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
