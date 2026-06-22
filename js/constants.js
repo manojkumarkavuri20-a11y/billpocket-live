@@ -13,6 +13,8 @@ const CANCEL_KEY = "billpocket.cancelPlanner.v1";
 const ACCOUNT_KEY = "billpocket.accountSettings.v1";
 const SIMULATOR_KEY = "billpocket.simulatorScenarios.v1";
 const CATEGORY_RULES_KEY = "billpocket.categoryRules.v1";
+const ACCENT_KEY = "billpocket.accent.v1";
+const ONBOARDING_KEY = "billpocket.onboarded.v1";
 const defaultCategories = ["Housing", "Utilities", "Entertainment", "Health", "Transport", "Learning", "Other"];
 const defaultOwnAccounts = ["HSBC", "Lloyds", "Revolut", "Monzo"];
 const defaultAccountSettings = {
@@ -40,4 +42,36 @@ const frequencyLabels = {
   monthly: "Monthly",
   quarterly: "Quarterly",
   yearly: "Yearly",
+};
+
+const accentOptions = [
+  { id: "terracotta", label: "Terracotta", hex: "#cc785c" },
+  { id: "sage",       label: "Sage",       hex: "#5a7a5e" },
+  { id: "indigo",     label: "Indigo",     hex: "#4a6b8a" },
+  { id: "plum",       label: "Plum",       hex: "#7d5e75" },
+  { id: "ochre",      label: "Ochre",      hex: "#b5894e" },
+  { id: "teal",       label: "Teal",       hex: "#4a847f" },
+];
+const defaultAccent = "terracotta";
+
+const billTemplates = [
+  { name: "Netflix",       amount: 9.99,  frequency: "monthly", category: "Entertainment" },
+  { name: "Spotify",       amount: 10.99, frequency: "monthly", category: "Entertainment" },
+  { name: "Disney+",       amount: 7.99,  frequency: "monthly", category: "Entertainment" },
+  { name: "Apple Music",   amount: 10.99, frequency: "monthly", category: "Entertainment" },
+  { name: "Amazon Prime",  amount: 8.99,  frequency: "monthly", category: "Entertainment" },
+  { name: "Rent",          amount: 0,     frequency: "monthly", category: "Housing" },
+  { name: "Gym",           amount: 30,    frequency: "monthly", category: "Health" },
+  { name: "Council tax",   amount: 0,     frequency: "monthly", category: "Housing" },
+];
+
+const viewIds = ["home", "bills", "upload", "review", "charts", "whatif", "tools"];
+const viewLabels = {
+  home: "Home",
+  bills: "Bills",
+  upload: "Upload statement",
+  review: "Review",
+  charts: "Charts",
+  whatif: "What if",
+  tools: "Tools",
 };

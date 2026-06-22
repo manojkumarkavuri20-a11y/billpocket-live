@@ -361,9 +361,18 @@ function handleTransactionReviewAction(event) {
     return;
   }
 
+  const previousTransactions = statementTransactions;
   statementTransactions = statementTransactions.filter((item) => item.id !== transaction.id);
   saveStatementTransactions();
   refreshStatementAnalyticsAfterReview();
+  showToast(`${titleCase(transaction.merchant)} deleted`, {
+    undo: () => {
+      statementTransactions = previousTransactions;
+      saveStatementTransactions();
+      refreshStatementAnalyticsAfterReview();
+      showToast(`${titleCase(transaction.merchant)} restored`);
+    },
+  });
 }
 
 function refreshStatementAnalyticsAfterReview() {

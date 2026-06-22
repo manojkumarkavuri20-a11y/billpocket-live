@@ -199,6 +199,36 @@ function saveCategoryRules() {
   renderPrivacyReport();
 }
 
+function loadAccentPreference() {
+  try {
+    const saved = localStorage.getItem(ACCENT_KEY);
+    return saved && accentOptions.some((opt) => opt.id === saved) ? saved : defaultAccent;
+  } catch {
+    return defaultAccent;
+  }
+}
+
+function saveAccentPreference() {
+  if (!activeAccent || activeAccent === defaultAccent) {
+    localStorage.removeItem(ACCENT_KEY);
+  } else {
+    localStorage.setItem(ACCENT_KEY, activeAccent);
+  }
+}
+
+function loadOnboardingState() {
+  try {
+    const saved = localStorage.getItem(ONBOARDING_KEY);
+    return saved ? JSON.parse(saved) : { dismissed: false, hasBill: false, hasStatement: false, sawInsights: false };
+  } catch {
+    return { dismissed: false, hasBill: false, hasStatement: false, sawInsights: false };
+  }
+}
+
+function saveOnboardingState() {
+  localStorage.setItem(ONBOARDING_KEY, JSON.stringify(onboardingState));
+}
+
 function loadReminderSettings() {
   try {
     const saved = localStorage.getItem(REMINDER_KEY);

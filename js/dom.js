@@ -131,3 +131,10 @@ const simCharts = document.querySelector("#simCharts");
 const simSaveButton = document.querySelector("#simSaveButton");
 const simResetButton = document.querySelector("#simResetButton");
 const simScenarioList = document.querySelector("#simScenarioList");
+
+const accentPicker = document.querySelector("#accentPicker");
+const globalSearchInput = document.querySelector("#globalSearchInput");
+const globalSearchResults = document.querySelector("#globalSearchResults");
+const billTemplatesRow = document.querySelector("#billTemplatesRow");
+const onboardingCard = document.querySelector("#onboardingCard");
+const toastHost = document.querySelector("#toastHost");
