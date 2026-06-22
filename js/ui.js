@@ -74,6 +74,41 @@ function getPrivacyRows() {
       count: Array.isArray(categoryRules) ? categoryRules.length : 0,
     },
     {
+      id: "fxRates",
+      label: "Exchange rates",
+      description: "Your local FX rates for cross-currency totals.",
+      key: FX_KEY,
+      count: Object.keys(fxRates || {}).length - 1,
+    },
+    {
+      id: "tags",
+      label: "Tags",
+      description: "Free-form labels you added.",
+      key: TAGS_KEY,
+      count: Array.isArray(tags) ? tags.length : 0,
+    },
+    {
+      id: "savedFilters",
+      label: "Saved filters",
+      description: "Pinned filter presets for Bills and Review.",
+      key: SAVED_FILTERS_KEY,
+      count: Array.isArray(savedFilters) ? savedFilters.length : 0,
+    },
+    {
+      id: "paymentHistory",
+      label: "Bill payment history",
+      description: "Per-bill actual-amount history from auto-confirmed imports.",
+      key: PAYMENT_HISTORY_KEY,
+      count: Object.values(paymentHistory || {}).reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0),
+    },
+    {
+      id: "lock",
+      label: "Lock state",
+      description: "Whether passphrase lock is enabled (the encrypted blob is separate).",
+      key: LOCK_KEY,
+      count: lockState && lockState.enabled ? 1 : 0,
+    },
+    {
       id: "reminders",
       label: "Reminder settings",
       description: "Alert window, mode, and last reminder state.",
@@ -215,10 +250,16 @@ function wipeAllLocalData() {
     return;
   }
 
-  [STORAGE_KEY, STATEMENT_KEY, BUDGET_KEY, GOAL_KEY, CANCEL_KEY, CATEGORY_KEY, CATEGORY_RULES_KEY, ACCOUNT_KEY, REMINDER_KEY, THEME_KEY, SIMULATOR_KEY].forEach((key) => localStorage.removeItem(key));
+  [STORAGE_KEY, STATEMENT_KEY, BUDGET_KEY, GOAL_KEY, CANCEL_KEY, CATEGORY_KEY, CATEGORY_RULES_KEY, ACCOUNT_KEY, REMINDER_KEY, THEME_KEY, SIMULATOR_KEY, FX_KEY, TAGS_KEY, SAVED_FILTERS_KEY, PAYMENT_HISTORY_KEY, LOCK_KEY, LOCKED_BLOB_KEY].forEach((key) => localStorage.removeItem(key));
   bills = [];
   categories = [...defaultCategories];
   categoryRules = [];
+  fxRates = { ...defaultFxRates };
+  tags = [];
+  savedFilters = [];
+  paymentHistory = {};
+  lockState = { enabled: false };
+  displayCurrency = fxBaseCurrency;
   accountSettings = { ...defaultAccountSettings, accounts: [...defaultOwnAccounts] };
   reminderSettings = { days: 7, mode: "off", lastNotified: "" };
   statementTransactions = [];
@@ -232,6 +273,10 @@ function wipeAllLocalData() {
   applyTheme("light", false);
   renderCategories();
   renderCategoryRules();
+  renderDisplayCurrencySelect();
+  renderFxRateList();
+  renderTagsPanel();
+  updateLockUi();
   renderStatementAccountOptions();
   renderAccountSettings();
   applyReminderSettings();

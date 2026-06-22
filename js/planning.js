@@ -387,7 +387,80 @@ function getSmartRecommendations() {
     });
   }
 
-  return recommendations.slice(0, 7);
+  // Anomaly detection: this-month category spend vs the prior 90-day mean.
+  const anomalies = detectSpendingAnomalies();
+  anomalies.slice(0, 2).forEach((item) => {
+    recommendations.push({
+      title: `Watch ${item.category}`,
+      body: `${formatMoney(item.thisMonth, "GBP")} spent this month vs ${formatMoney(item.baseline, "GBP")} typical — ${item.pctOver > 0 ? "up" : "down"} ${Math.abs(Math.round(item.pctOver))}%.`,
+    });
+  });
+
+  // Bill price-change history: surface the most recent shift across all bills.
+  const billChanges = detectBillPriceChanges();
+  if (billChanges.length > 0) {
+    const top = billChanges[0];
+    recommendations.push({
+      title: `${top.bill.name} ${top.delta > 0 ? "went up" : "dropped"}`,
+      body: `Last two payments: ${formatMoney(top.previous, "GBP")} → ${formatMoney(top.current, "GBP")} (${top.delta > 0 ? "+" : ""}${Math.round(top.pct)}%).`,
+    });
+  }
+
+  return recommendations.slice(0, 8);
+}
+
+// Compare each category's current-month spend to the mean of the prior 90
+// days; flag anything > 1.5 standard deviations above (or below) baseline.
+function detectSpendingAnomalies() {
+  const today = startOfDay(new Date());
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const periodStart = new Date(today.getTime() - 90 * 86400000);
+
+  const baselineByCategory = {};
+  const thisMonthByCategory = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (!tx.spending || isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    if (txDate >= periodStart && txDate < monthStart) {
+      baselineByCategory[tx.category] = (baselineByCategory[tx.category] || []);
+      baselineByCategory[tx.category].push(tx.spending);
+    }
+    if (txDate >= monthStart && txDate <= today) {
+      thisMonthByCategory[tx.category] = (thisMonthByCategory[tx.category] || 0) + tx.spending;
+    }
+  });
+
+  const anomalies = [];
+  for (const [category, thisMonth] of Object.entries(thisMonthByCategory)) {
+    const samples = baselineByCategory[category];
+    if (!samples || samples.length < 3) continue;
+    // Project the prior 90-day spend to a monthly baseline.
+    const baseline = (samples.reduce((a, b) => a + b, 0) / 3);
+    if (baseline < 10) continue;
+    const pctOver = ((thisMonth - baseline) / baseline) * 100;
+    if (Math.abs(pctOver) >= 30) {
+      anomalies.push({ category, thisMonth: roundMoney(thisMonth), baseline: roundMoney(baseline), pctOver });
+    }
+  }
+  return anomalies.sort((a, b) => Math.abs(b.pctOver) - Math.abs(a.pctOver));
+}
+
+// Scan paymentHistory for bills whose last two recorded payments differ by
+// 5% or more. Returns the largest change first.
+function detectBillPriceChanges() {
+  const out = [];
+  bills.forEach((bill) => {
+    const history = Array.isArray(paymentHistory[bill.id]) ? paymentHistory[bill.id] : [];
+    if (history.length < 2) return;
+    const last = history[history.length - 1];
+    const prev = history[history.length - 2];
+    const delta = last.amount - prev.amount;
+    const pct = (delta / Math.max(prev.amount, 0.01)) * 100;
+    if (Math.abs(pct) >= 5) {
+      out.push({ bill, previous: prev.amount, current: last.amount, delta, pct });
+    }
+  });
+  return out.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
 }
 
 function renderRecommendationItem(item) {

@@ -176,6 +176,15 @@ function createId() {
 }
 
 function formatTotalsByCurrency(items, mapper) {
+  // If a user has picked a single display currency we convert everything into
+  // it for one clean total; otherwise we fall back to per-currency rendering
+  // (the legacy behaviour for users who never opened the FX panel).
+  const display = typeof displayCurrency === "string" ? displayCurrency : fxBaseCurrency;
+  if (display) {
+    const total = items.reduce((sum, bill) => sum + convertCurrency(mapper(bill), bill.currency || display, display), 0);
+    return formatMoney(total, display);
+  }
+
   const totals = items.reduce((result, bill) => {
     result[bill.currency] = (result[bill.currency] || 0) + mapper(bill);
     return result;
