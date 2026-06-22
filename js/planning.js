@@ -195,7 +195,31 @@ function renderCashflowForecast() {
     return;
   }
 
-  const events = forecast.events.slice(0, 7).map((event) => `
+  // Extended horizons: 3 / 6 / 12 months. Each horizon shows the projected
+  // position and a confidence band (±1 stdev of the historical monthly net).
+  const variability = getHistoricalMonthlyVariability();
+  const horizons = [
+    { label: "3 months", months: 3 },
+    { label: "6 months", months: 6 },
+    { label: "12 months", months: 12 },
+  ].map((h) => {
+    const projection = getCashflowForecast(h.months * 30).projected;
+    const band = variability.stdev * Math.sqrt(h.months);
+    return { ...h, projection, low: projection - band, high: projection + band };
+  });
+
+  const horizonTiles = horizons
+    .map(
+      (h) => `
+    <div class="forecast-horizon ${h.projection >= 0 ? "positive" : "negative"}">
+      <span class="muted">${escapeHtml(h.label)}</span>
+      <strong>${formatMoney(h.projection, "GBP")}</strong>
+      ${variability.samples >= 2 ? `<small class="muted">${formatMoney(h.low, "GBP")} … ${formatMoney(h.high, "GBP")}</small>` : ""}
+    </div>`
+    )
+    .join("");
+
+  const events = forecast.events.slice(0, 5).map((event) => `
     <div class="analysis-item">
       <div>
         <h4>${escapeHtml(event.name)} <span>${formatDate(event.date)}</span></h4>
@@ -209,8 +233,54 @@ function renderCashflowForecast() {
       <span>Projected 30-day position</span>
       <strong>${formatMoney(forecast.projected, "GBP")}</strong>
     </div>
+    <div class="forecast-horizons">${horizonTiles}</div>
     ${events.length ? events.join("") : `<p class="muted">No bill or income events found for the next 30 days.</p>`}
   `;
+}
+
+// Standard deviation of the last 6 months of net cashflow (income − spend).
+// Used to draw confidence bands around longer-horizon forecasts.
+function getHistoricalMonthlyVariability() {
+  const today = startOfDay(new Date());
+  const buckets = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    const monthsBack = (today.getFullYear() - txDate.getFullYear()) * 12 + (today.getMonth() - txDate.getMonth());
+    if (monthsBack < 0 || monthsBack > 5) return;
+    const key = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, "0")}`;
+    if (!buckets[key]) buckets[key] = { income: 0, spend: 0 };
+    buckets[key].income += Number(tx.income) || 0;
+    buckets[key].spend += Number(tx.spending) || 0;
+  });
+  const nets = Object.values(buckets).map((b) => b.income - b.spend);
+  if (nets.length < 2) return { samples: nets.length, mean: 0, stdev: 0 };
+  const mean = nets.reduce((a, b) => a + b, 0) / nets.length;
+  const variance = nets.reduce((s, n) => s + (n - mean) ** 2, 0) / nets.length;
+  return { samples: nets.length, mean: roundMoney(mean), stdev: Math.sqrt(variance) };
+}
+
+// Year-over-year category totals: returns this-year and last-year aggregates
+// for the trailing 12 months, suitable for a side-by-side bar chart.
+function getYearOverYearTotals() {
+  const today = startOfDay(new Date());
+  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+  const twelveMonthsAgoSameWindow = new Date(today.getFullYear() - 1, today.getMonth() - 5, 1);
+  const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth() + 1, 0);
+
+  const thisYearByMonth = {};
+  const lastYearByMonth = {};
+  getAnalyzedTransactions().forEach((tx) => {
+    if (!tx.spending || isTransactionExcluded(tx)) return;
+    const txDate = parseLocalDate(tx.date);
+    const key = String(txDate.getMonth() + 1).padStart(2, "0");
+    if (txDate >= sixMonthsAgo && txDate <= today) {
+      thisYearByMonth[key] = (thisYearByMonth[key] || 0) + tx.spending;
+    } else if (txDate >= twelveMonthsAgoSameWindow && txDate <= oneYearAgo) {
+      lastYearByMonth[key] = (lastYearByMonth[key] || 0) + tx.spending;
+    }
+  });
+  return { thisYearByMonth, lastYearByMonth };
 }
 
 function getCashflowForecast(days) {

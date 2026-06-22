@@ -1493,6 +1493,36 @@ body[data-theme="dark"][data-accent="teal"]       { --accent: #78b0aa; --accent-
   .app-header-search { flex: 1 1 100%; order: 3; }
 }
 
+/* ─── Forecast horizons (3/6/12-month tiles with confidence bands) ── */
+.forecast-horizons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.forecast-horizon {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.forecast-horizon strong {
+  font-size: 15px;
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.forecast-horizon.positive strong { color: var(--positive); }
+.forecast-horizon.negative strong { color: var(--negative); }
+.forecast-horizon small { font-size: 10px; }
+@media (max-width: 720px) {
+  .forecast-horizons { grid-template-columns: 1fr; }
+}
+
 /* ─── Saved filters strip ───────────────────────────────── */
 .saved-filter-strip {
   display: flex;
