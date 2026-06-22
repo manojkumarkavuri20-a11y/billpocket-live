@@ -195,6 +195,12 @@ button { cursor: pointer; }
 }
 .theme-button:hover { border-color: var(--ink); color: var(--ink); }
 
+.install-button {
+  padding: 6px var(--space-3);
+  font-size: 13px;
+}
+.install-button[hidden] { display: none; }
+
 .app-nav {
   position: sticky;
   top: 0;

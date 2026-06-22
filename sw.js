@@ -1,33 +1,40 @@
 /* BillPocket service worker — offline shell cache.
- * The app is fully local (localStorage only), so we just cache the shell
- * and the JS/CSS modules. On activation, old versioned caches are deleted.
+ * The app is fully local (localStorage only), so we just cache the shell,
+ * the JS/CSS modules, the manifest, and the icon set. On activation, older
+ * versioned caches are deleted.
  */
 
-const CACHE = "billpocket-shell-v20260622-slate1";
+const CACHE = "billpocket-shell-v20260623-windows1";
+const VERSION = "v=20260623-windows1";
 const SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260622-slate1",
   "./manifest.webmanifest",
-  "./js/constants.js?v=20260622-slate1",
-  "./js/dom.js?v=20260622-slate1",
-  "./js/utils.js?v=20260622-slate1",
-  "./js/storage.js?v=20260622-slate1",
-  "./js/statement-parser.js?v=20260622-slate1",
-  "./js/statement-analysis.js?v=20260622-slate1",
-  "./js/account.js?v=20260622-slate1",
-  "./js/transactions.js?v=20260622-slate1",
-  "./js/charts.js?v=20260622-slate1",
-  "./js/planning.js?v=20260622-slate1",
-  "./js/simulator.js?v=20260622-slate1",
-  "./js/bills.js?v=20260622-slate1",
-  "./js/ui.js?v=20260622-slate1",
-  "./js/app.js?v=20260622-slate1",
+  "./icons/icon.svg",
+  "./icons/icon-maskable.svg",
+  "./icons/favicon.svg",
+  `./styles.css?${VERSION}`,
+  `./js/constants.js?${VERSION}`,
+  `./js/dom.js?${VERSION}`,
+  `./js/utils.js?${VERSION}`,
+  `./js/storage.js?${VERSION}`,
+  `./js/statement-parser.js?${VERSION}`,
+  `./js/statement-analysis.js?${VERSION}`,
+  `./js/account.js?${VERSION}`,
+  `./js/transactions.js?${VERSION}`,
+  `./js/charts.js?${VERSION}`,
+  `./js/planning.js?${VERSION}`,
+  `./js/simulator.js?${VERSION}`,
+  `./js/bills.js?${VERSION}`,
+  `./js/ui.js?${VERSION}`,
+  `./js/app.js?${VERSION}`,
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))))
+    caches.open(CACHE).then((cache) =>
+      cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))
+    )
   );
   self.skipWaiting();
 });
@@ -35,7 +42,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k.startsWith("billpocket-shell-") && k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k.startsWith("billpocket-shell-") && k !== CACHE)
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
@@ -44,7 +55,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-  // Cache-first for app shell; network-first for everything else.
+  // Cache-first for the app shell; network-first fallback.
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;

@@ -69,6 +69,34 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
+// Wire the install prompt: when the browser fires `beforeinstallprompt` we
+// hold onto the event so a button click can trigger the native install UI.
+// If the app is already installed or the browser doesn't support PWAs (iOS
+// Safari) the button stays hidden — iOS users can still "Add to Home Screen"
+// via the share sheet.
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (installButton) installButton.hidden = false;
+});
+if (installButton) {
+  installButton.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    installButton.hidden = true;
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (choice.outcome === "accepted") {
+      showToast("BillPocket installed");
+    }
+  });
+}
+window.addEventListener("appinstalled", () => {
+  if (installButton) installButton.hidden = true;
+  showToast("BillPocket installed · find it in your apps");
+});
+
 window.addEventListener("hashchange", () => {
   setActiveView(readActiveViewFromHash(), { skipPush: true });
 });

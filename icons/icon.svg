@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="BillPocket">
+  <rect width="192" height="192" rx="40" fill="#cc785c"/>
+  <rect x="50" y="32" width="92" height="4" rx="2" fill="white" opacity="0.45"/>
+  <rect x="50" y="44" width="92" height="6" rx="3" fill="white" opacity="0.65"/>
+  <rect x="48" y="56" width="96" height="92" rx="8" fill="white" opacity="0.97"/>
+  <rect x="62" y="76" width="68" height="4" rx="2" fill="#cc785c" opacity="0.9"/>
+  <rect x="62" y="92" width="68" height="4" rx="2" fill="#cc785c" opacity="0.75"/>
+  <rect x="62" y="108" width="48" height="4" rx="2" fill="#cc785c" opacity="0.6"/>
+  <circle cx="118" cy="130" r="6" fill="#cc785c"/>
+</svg>

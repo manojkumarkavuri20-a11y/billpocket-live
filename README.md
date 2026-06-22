@@ -6,6 +6,30 @@ BillPocket is a fully local bill tracker and spending analyser for subscriptions
 
 ---
 
+## Install
+
+| Platform | How |
+|---|---|
+| **Windows** (native app) | Download the latest `BillPocket_x.x.x_x64-setup.exe` or `.msi` from the [Releases page](https://github.com/manojkumarkavuri20-a11y/billpocket-live/releases/latest), then double-click to install. ~5 MB. |
+| **Browser (any OS)** | Visit [the live site](https://manojkumarkavuri20-a11y.github.io/billpocket-live/) — works offline once loaded. |
+| **PWA (install in Edge/Chrome on Windows, Mac, Linux, Android)** | Visit the live site, then click the **"Install app"** button in the header, or use the browser's install prompt in the address bar. Adds an app icon to your launcher/start menu. |
+| **iOS / iPadOS** | Visit the live site in Safari → Share sheet → "Add to Home Screen". |
+
+> **Privacy by default**: every install path keeps your data on the device. No telemetry, no account, no server.
+
+### Cutting a Windows release
+
+The Windows installer is built automatically by the [`Build Windows app`](.github/workflows/windows-release.yml) GitHub Action when you push a tag matching `v*`. To cut a new release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+In about 5 minutes the Action will create a new GitHub Release with `BillPocket_1.0.0_x64-setup.exe` (NSIS) and `BillPocket_1.0.0_x64_en-US.msi` (WiX) attached.
+
+---
+
 ## Simple workflow
 
 1. Add regular bills.

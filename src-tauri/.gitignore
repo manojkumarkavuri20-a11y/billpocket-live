@@ -1,0 +1,7 @@
+# Tauri build artefacts — CI regenerates these
+/target/
+/gen/
+WixTools/
+icons/*.png
+icons/*.ico
+icons/*.icns
