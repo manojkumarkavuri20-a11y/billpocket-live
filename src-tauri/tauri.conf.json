@@ -19,7 +19,6 @@
         "resizable": true,
         "center": true,
         "decorations": true,
-        "fileDropEnabled": true,
         "url": "index.html"
       }
     ],
@@ -46,7 +45,7 @@
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "nsis": {
         "installerIcon": "icons/icon.ico",
-        "installMode": "perUser",
+        "installMode": "currentUser",
         "displayLanguageSelector": false,
         "languages": ["English"]
       },
