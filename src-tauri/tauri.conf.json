@@ -2,9 +2,9 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "BillPocket",
   "version": "1.0.0",
-  "identifier": "com.billpocket.app",
+  "identifier": "com.billpocket.tracker",
   "build": {
-    "frontendDist": "../",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:8000"
   },
   "app": {

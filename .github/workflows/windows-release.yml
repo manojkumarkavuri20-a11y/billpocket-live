@@ -55,6 +55,14 @@ jobs:
       - name: Generate Tauri icon set from icons/icon.svg
         run: npx @tauri-apps/cli icon icons/icon.svg --output src-tauri/icons
 
+      - name: Assemble web dist for Tauri
+        # Tauri 2 refuses a frontendDist that contains src-tauri/, so we copy
+        # just the web assets into a clean dist/ folder before building.
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp -r index.html styles.css manifest.webmanifest sw.js icons js dist/
+
       - name: Build BillPocket for Windows
         run: npx @tauri-apps/cli build
         working-directory: src-tauri
