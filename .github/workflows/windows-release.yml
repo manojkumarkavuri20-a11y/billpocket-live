@@ -17,8 +17,22 @@ name: Build Windows app
 
 on:
   push:
+    # 'v*' tag pushes produce a proper GitHub Release with installers attached.
+    # main-branch pushes that touch the Tauri scaffold or its CI build the
+    # installer as workflow artifacts so iteration doesn't require a tag.
     tags:
       - "v*"
+    branches:
+      - main
+    paths:
+      - "src-tauri/**"
+      - "icons/**"
+      - ".github/workflows/windows-release.yml"
+      - "index.html"
+      - "styles.css"
+      - "sw.js"
+      - "manifest.webmanifest"
+      - "js/**"
   workflow_dispatch:
 
 permissions:
