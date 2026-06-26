@@ -62,6 +62,7 @@ const scenarioGoalInput = document.querySelector("#scenarioGoalInput");
 const scenarioResult = document.querySelector("#scenarioResult");
 const accountOverlapSummary = document.querySelector("#accountOverlapSummary");
 const autoDetectTransfersButton = document.querySelector("#autoDetectTransfersButton");
+const transferReviewList = document.querySelector("#transferReviewList");
 const accountSettingsForm = document.querySelector("#accountSettingsForm");
 const newOwnAccountInput = document.querySelector("#newOwnAccount");
 const ownAccountList = document.querySelector("#ownAccountList");
