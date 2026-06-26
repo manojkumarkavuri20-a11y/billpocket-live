@@ -111,6 +111,7 @@ function renderAnalystCenter() {
   renderScenarioGoalOptions();
   renderScenarioPlanner();
   renderAccountOverlapSummary();
+  renderTransferReview();
   renderTransactionReviewFilters();
   renderTransactionReview();
 }

@@ -169,6 +169,7 @@ scenarioCutValue.addEventListener("input", syncScenarioCutFromNumber);
 scenarioCancelInput.addEventListener("input", renderScenarioPlanner);
 scenarioGoalInput.addEventListener("change", renderScenarioPlanner);
 autoDetectTransfersButton.addEventListener("click", autoDetectOwnTransfers);
+if (transferReviewList) transferReviewList.addEventListener("click", handleTransferReviewClick);
 accountSettingsForm.addEventListener("submit", addOwnAccount);
 ownAccountList.addEventListener("click", handleOwnAccountAction);
 transferWindowInput.addEventListener("change", saveAccountSettingsFromInputs);

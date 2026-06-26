@@ -706,6 +706,8 @@ input[type="range"]:focus { box-shadow: none; }
   background: var(--accent);
   flex-shrink: 0;
 }
+.donut-legend-row span.chart-income-swatch { background: var(--positive); }
+.donut-legend-row span.chart-spend-swatch { background: var(--negative); }
 
 .history-card { gap: var(--space-3); }
 .history-bars {
@@ -1653,6 +1655,75 @@ body[data-theme="dark"][data-accent="teal"]       { --accent: #78b0aa; --accent-
   font-size: 13px;
   width: 80px;
   text-align: right;
+}
+
+/* ─── Own-account transfer review ────────────────────────── */
+.transfer-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.transfer-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: 13px;
+  padding-bottom: var(--space-2);
+}
+.transfer-review-head .primary-button { font-size: 13px; padding: 6px 12px; }
+.transfer-pair {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.transfer-pair.is-confirmed { opacity: 0.75; }
+.transfer-pair-flow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.transfer-leg {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.transfer-leg small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.transfer-arrow { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.transfer-pair-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+.transfer-pair-meta strong { font-variant-numeric: tabular-nums; font-size: 14px; }
+.transfer-pair-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.transfer-pair-action .primary-button,
+.transfer-pair-action .ghost-button { font-size: 13px; padding: 5px 12px; }
+@media (max-width: 720px) {
+  .transfer-pair { grid-template-columns: 1fr auto; }
+  .transfer-pair-action { grid-column: 1 / -1; justify-content: flex-end; }
 }
 
 /* ─── Security panel ─────────────────────────────────────── */

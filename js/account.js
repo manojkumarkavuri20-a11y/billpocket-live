@@ -275,9 +275,161 @@ function autoDetectOwnTransfers() {
 
   saveStatementTransactions();
   refreshStatementAnalyticsAfterReview();
+  renderTransferReview();
   statementMessage.textContent = `Marked ${transferIds.size} likely own-account transfer row${transferIds.size === 1 ? "" : "s"} as Transfer. These rows no longer affect income or spending totals.`;
+  showToast(`Confirmed ${transferIds.size} own-account transfer${transferIds.size === 1 ? "" : "s"}`);
 }
 
 function isLikelyOwnTransferText(transaction) {
   return looksLikeOwnTransferText(`${transaction.description || ""} ${transaction.merchant || ""} ${transaction.account || ""}`);
+}
+
+// ─── Own-account transfer review panel ───────────────────────────────────────
+// Pairs an outgoing on one of the user's own accounts with an incoming on a
+// DIFFERENT own account, within the configured amount tolerance + date window.
+// Unlike findPotentialOwnTransferPairs (candidates only), this also returns
+// already-confirmed pairs so they can be undone. Each pair carries a `confirmed`
+// flag = both legs already typed as "transfer".
+function getOwnTransferPairs() {
+  const outgoing = statementTransactions.filter((t) => Number(t.spending) > 0 && isOwnAccount(t.account));
+  const incoming = statementTransactions.filter((t) => Number(t.income) > 0 && isOwnAccount(t.account));
+  const usedIncoming = new Set();
+  const pairs = [];
+  const transferWindowDays = clamp(Number(accountSettings.transferWindowDays), 0, 7);
+  const tolerancePercent = clamp(Number(accountSettings.amountTolerancePercent), 0, 10);
+
+  outgoing
+    .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
+    .forEach((outTransaction) => {
+      const match = incoming.find((inTransaction) => {
+        if (usedIncoming.has(inTransaction.id) || inTransaction.account === outTransaction.account) {
+          return false;
+        }
+        const amountGap = Math.abs(outTransaction.spending - inTransaction.income);
+        const dateGap = Math.abs(daysBetween(outTransaction.date, inTransaction.date));
+        const allowedGap = Math.max(0.5, outTransaction.spending * (tolerancePercent / 100));
+        return amountGap <= allowedGap && dateGap <= transferWindowDays;
+      });
+      if (match) {
+        usedIncoming.add(match.id);
+        pairs.push({
+          outgoing: outTransaction,
+          incoming: match,
+          confirmed: outTransaction.type === "transfer" && match.type === "transfer",
+        });
+      }
+    });
+  return pairs;
+}
+
+function renderTransferReview() {
+  if (!transferReviewList) {
+    return;
+  }
+  if (statementTransactions.length === 0) {
+    transferReviewList.innerHTML = `<p class="muted">Upload statements from each of your accounts to spot internal transfers.</p>`;
+    return;
+  }
+
+  const pairs = getOwnTransferPairs();
+  if (pairs.length === 0) {
+    transferReviewList.innerHTML = `<p class="muted">No transfers between your own accounts detected. Add your account names above and re-check, or mark a row as Transfer in the table.</p>`;
+    return;
+  }
+
+  const pending = pairs.filter((pair) => !pair.confirmed).length;
+  const header = pending > 0
+    ? `<div class="transfer-review-head"><span><strong>${pending}</strong> pending of ${pairs.length} detected</span><button type="button" class="primary-button" data-transfer-action="confirm-all">Confirm all</button></div>`
+    : `<div class="transfer-review-head"><span>All ${pairs.length} detected transfers confirmed</span></div>`;
+
+  const rows = pairs
+    .map((pair) => {
+      const amount = formatMoneyDisplay(pair.outgoing.spending, pair.outgoing.currency || "GBP");
+      const datePart = pair.outgoing.date === pair.incoming.date
+        ? escapeHtml(formatDate(pair.outgoing.date))
+        : `${escapeHtml(formatDate(pair.outgoing.date))} → ${escapeHtml(formatDate(pair.incoming.date))}`;
+      const action = pair.confirmed
+        ? `<button type="button" class="ghost-button" data-transfer-action="undo" data-out="${escapeHtml(pair.outgoing.id)}" data-in="${escapeHtml(pair.incoming.id)}">Undo</button>`
+        : `<button type="button" class="primary-button" data-transfer-action="confirm" data-out="${escapeHtml(pair.outgoing.id)}" data-in="${escapeHtml(pair.incoming.id)}">Confirm</button>`;
+      return `
+        <div class="transfer-pair ${pair.confirmed ? "is-confirmed" : ""}">
+          <div class="transfer-pair-flow">
+            <span class="transfer-leg out">${escapeHtml(normalizeAccount(pair.outgoing.account))}<small>${escapeHtml(titleCase(pair.outgoing.merchant))}</small></span>
+            <span class="transfer-arrow" aria-hidden="true">→</span>
+            <span class="transfer-leg in">${escapeHtml(normalizeAccount(pair.incoming.account))}<small>${escapeHtml(titleCase(pair.incoming.merchant))}</small></span>
+          </div>
+          <div class="transfer-pair-meta">
+            <strong>${escapeHtml(amount)}</strong>
+            <small class="muted">${datePart}</small>
+          </div>
+          <div class="transfer-pair-action">
+            ${pair.confirmed ? `<span class="badge active">excluded</span>` : ""}
+            ${action}
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  transferReviewList.innerHTML = header + rows;
+}
+
+function setTransferPairType(outId, inId, asTransfer) {
+  const out = statementTransactions.find((t) => t.id === outId);
+  const inc = statementTransactions.find((t) => t.id === inId);
+  const stamp = new Date().toISOString();
+  if (out) {
+    applyTransactionType(out, asTransfer ? "transfer" : "spending");
+    out.reviewedAt = stamp;
+    out.updatedAt = stamp;
+  }
+  if (inc) {
+    applyTransactionType(inc, asTransfer ? "transfer" : "income");
+    inc.reviewedAt = stamp;
+    inc.updatedAt = stamp;
+  }
+  saveStatementTransactions();
+  refreshStatementAnalyticsAfterReview();
+  renderTransferReview();
+}
+
+function handleTransferReviewClick(event) {
+  const button = event.target.closest("button[data-transfer-action]");
+  if (!button) {
+    return;
+  }
+  const action = button.dataset.transferAction;
+
+  if (action === "confirm-all") {
+    const pending = getOwnTransferPairs().filter((pair) => !pair.confirmed);
+    if (pending.length === 0) {
+      return;
+    }
+    const previous = statementTransactions;
+    const stamp = new Date().toISOString();
+    const ids = new Set(pending.flatMap((pair) => [pair.outgoing.id, pair.incoming.id]));
+    statementTransactions = statementTransactions.map((t) =>
+      ids.has(t.id) ? { ...t, type: "transfer", category: "Transfers", reviewedAt: stamp, updatedAt: stamp } : t
+    );
+    saveStatementTransactions();
+    refreshStatementAnalyticsAfterReview();
+    renderTransferReview();
+    showToast(`Confirmed ${pending.length} transfer${pending.length === 1 ? "" : "s"}`, {
+      undo: () => {
+        statementTransactions = previous;
+        saveStatementTransactions();
+        refreshStatementAnalyticsAfterReview();
+        renderTransferReview();
+        showToast("Reverted transfers");
+      },
+    });
+    return;
+  }
+
+  if (action === "confirm") {
+    setTransferPairType(button.dataset.out, button.dataset.in, true);
+    showToast("Transfer confirmed · excluded from totals");
+  } else if (action === "undo") {
+    setTransferPairType(button.dataset.out, button.dataset.in, false);
+    showToast("Transfer reverted · counted again");
+  }
 }

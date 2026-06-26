@@ -4,8 +4,8 @@
  * versioned caches are deleted.
  */
 
-const CACHE = "billpocket-shell-v20260623-windows1";
-const VERSION = "v=20260623-windows1";
+const CACHE = "billpocket-shell-v20260624-transfers1";
+const VERSION = "v=20260624-transfers1";
 const SHELL = [
   "./",
   "./index.html",

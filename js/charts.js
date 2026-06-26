@@ -50,14 +50,14 @@ function renderYearOverYearChart() {
 
   host.innerHTML = `
     <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Year over year spending">
-      ${renderYAxis(width, height, padding, maxValue)}
+      ${renderYAxis(width, height, { top: padding, bottom: padding, left: padding, right: padding }, maxValue)}
       <line class="chart-axis" x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" />
       ${bars}
     </svg>
-    ${renderLegend([
-      { label: "This year", className: "chart-income" },
-      { label: "Last year (same month)", className: "chart-spend" },
-    ])}
+    <div class="donut-legend">
+      <div class="donut-legend-row"><span class="chart-income-swatch"></span>This year</div>
+      <div class="donut-legend-row"><span class="chart-spend-swatch"></span>Last year (same month)</div>
+    </div>
   `;
 }
 
